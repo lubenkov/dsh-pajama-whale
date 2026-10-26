@@ -1,0 +1,39 @@
+{
+ "cell": [
+  288,
+  361
+ ],
+ "squash": {
+  "up": 8,
+  "right": 8,
+  "left": 8,
+  "down": 8
+ },
+ "emotions": {
+  "blink": {
+   "frames": 4,
+   "fps": 16,
+   "loop": false
+  },
+  "tail_wag": {
+   "frames": 12,
+   "fps": 14,
+   "loop": true
+  },
+  "joy": {
+   "frames": 12,
+   "fps": 14,
+   "loop": true
+  }
+ },
+ "neutral_bbox": [
+  69,
+  68,
+  716,
+  1049
+ ],
+ "frame": [
+  896,
+  1123
+ ]
+}
