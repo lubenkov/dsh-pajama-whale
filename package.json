@@ -1,0 +1,48 @@
+{
+  "name": "dsh-pajama-whale",
+  "version": "0.1.0",
+  "description": "A tiny person in a blue-whale onesie you can drag around the DSH window; he sticks to the window edges, pressed flat, and blinks now and then.",
+  "type": "module",
+  "license": "MIT",
+  "author": "lubenkov (https://github.com/lubenkov)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lubenkov/dsh-pajama-whale.git"
+  },
+  "homepage": "https://github.com/lubenkov/dsh-pajama-whale",
+  "bugs": {
+    "url": "https://github.com/lubenkov/dsh-pajama-whale/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "pet",
+    "whale",
+    "desktop-companion"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "assets/build/*.webp",
+    "tools/build-client.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  }
+}

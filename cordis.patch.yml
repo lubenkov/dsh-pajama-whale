@@ -1,0 +1,4 @@
+# One bundle row: the Client half renders the pet, the Host half is a no-op.
+- insert:
+    - id: pajama-whale
+      name: dsh-pajama-whale

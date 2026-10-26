@@ -1,0 +1,13 @@
+# build artifacts and local experiments
+.preview/
+node_modules/
+
+# generated sprite source pack (large, produced outside the repo)
+assets/sprites/
+
+# sandbox recovery files
+.acl-recovery/
+
+*.log
+.DS_Store
+Thumbs.db
