@@ -69,9 +69,8 @@ window.__ModuleLoader__.load({
 
     const STORAGE_KEY = 'dsh-pajama-whale:position:v1';
     const PULL_PX = 110;
-    const THROW_FRICTION = 1.7;
-    const MIN_THROW_SPEED = 30;
     const THROW_THRESHOLD = 120;
+    const PAUSE_MS = 120;
     const DEPTH_EASE = 143; // ~7 ms
     const IDLE_MS = 8 * 60_000;
     const NIGHT_IDLE_MS = 2 * 60_000;
@@ -160,6 +159,7 @@ window.__ModuleLoader__.load({
       const { host, useSessions, useSessionStatus } = props;
 
       const rootRef = React.useRef(null);
+      const hitRef = React.useRef(null);
       const layerARef = React.useRef(null);
       const breatheRef = React.useRef(null);
       const frameRef = React.useRef(0);
@@ -184,6 +184,8 @@ window.__ModuleLoader__.load({
       const [cloud, setCloud] = React.useState(null);
       const [hovered, setHovered] = React.useState(false);
       const [below, setBelow] = React.useState(false);
+      const [cloudShift, setCloudShift] = React.useState(0);
+      const cloudRef = React.useRef(null);
 
       const liveRef = React.useRef({});
       liveRef.current = { status, sessionInfo, hovered, state: null };
@@ -207,6 +209,7 @@ window.__ModuleLoader__.load({
           lastX: 0,
           lastY: 0,
           lastTime: 0,
+          lastMoveAt: 0,
           anim: null,
         };
       }
@@ -316,18 +319,7 @@ window.__ModuleLoader__.load({
             state.stuck = true;
           }
 
-          if (!state.stuck) {
-            const friction = Math.pow(1 / (1 + THROW_FRICTION), dt);
-            state.vx *= friction;
-            state.vy *= friction;
-            if (Math.hypot(state.vx, state.vy) < MIN_THROW_SPEED) {
-              state.vx = 0;
-              state.vy = 0;
-              storePosition(state.x, state.y);
-            }
-          } else {
-            storePosition(state.x, state.y);
-          }
+          if (state.stuck) storePosition(state.x, state.y);
         }
 
         paint(now);
@@ -361,47 +353,66 @@ window.__ModuleLoader__.load({
 
       /* ---- session info: context, error, tool activity ----------------- */
 
+      const retainedByMain = sessions?.byId?.[sessionId]?.retainedBy?.mainView ?? 0;
+
       React.useEffect(() => {
+        // A previous session's context/error must never leak into the next one.
+        setSessionInfo({ contextPercent: null, error: null, toolActive: false });
         if (!sessionId || !host || typeof host.get !== 'function') return undefined;
         const service = host.get('sessions');
-        const binding = service?.binding?.(sessionId);
-        if (!binding) return undefined;
+        let cancelled = false;
+        let retry = 0;
+        const disposers = [];
 
-        const session = binding.session;
-        const pressure = session.projections?.faceOf?.('contextPressure');
-        const events = binding.eventSource;
+        const attach = () => {
+          if (cancelled) return;
+          const binding = service?.binding?.(sessionId);
+          if (!binding) {
+            // The generation may not be retained yet right after a switch.
+            retry = window.setTimeout(attach, 300);
+            return;
+          }
 
-        const read = () => {
-          const snapshot = session.getSnapshot();
-          const value = pressure?.getSnapshot?.();
-          const used = value?.projectedTokens ?? value?.pressureTokens;
-          const contextPercent =
-            used !== undefined && value?.contextWindow
-              ? Math.min(100, Math.round((used / value.contextWindow) * 100))
-              : null;
-          const toolActive = scanToolActivity(events?.getSnapshot?.());
-          setSessionInfo((previous) => {
-            if (
-              previous.contextPercent === contextPercent &&
-              previous.error === (snapshot.lastAgentError ?? null) &&
-              previous.toolActive === toolActive
-            ) {
-              return previous;
-            }
-            return { contextPercent, error: snapshot.lastAgentError ?? null, toolActive };
-          });
+          const session = binding.session;
+          const pressure = session.projections?.faceOf?.('contextPressure');
+          const events = binding.eventSource;
+
+          const read = () => {
+            const snapshot = session.getSnapshot();
+            const value = pressure?.getSnapshot?.();
+            const used = value?.projectedTokens ?? value?.pressureTokens;
+            const contextPercent =
+              used !== undefined && value?.contextWindow
+                ? Math.min(100, Math.round((used / value.contextWindow) * 100))
+                : null;
+            const toolActive = scanToolActivity(events?.getSnapshot?.());
+            setSessionInfo((previous) => {
+              if (
+                previous.contextPercent === contextPercent &&
+                previous.error === (snapshot.lastAgentError ?? null) &&
+                previous.toolActive === toolActive
+              ) {
+                return previous;
+              }
+              return { contextPercent, error: snapshot.lastAgentError ?? null, toolActive };
+            });
+          };
+
+          read();
+          disposers.push(
+            session.subscribe?.(read),
+            pressure?.subscribe?.(read),
+            events?.subscribe?.(read),
+          );
         };
 
-        read();
-        const disposers = [
-          session.subscribe?.(read),
-          pressure?.subscribe?.(read),
-          events?.subscribe?.(read),
-        ];
+        attach();
         return () => {
+          cancelled = true;
+          window.clearTimeout(retry);
           for (const dispose of disposers) if (typeof dispose === 'function') dispose();
         };
-      }, [sessionId, host]);
+      }, [sessionId, host, retainedByMain]);
 
       /* ---- cloud content ---------------------------------------------- */
 
@@ -466,6 +477,10 @@ window.__ModuleLoader__.load({
             next = { text: '?', tone: 'wait' };
           } else if (now < meta.errorUntil) {
             next = { text: '! ошибка', tone: 'error' };
+          } else if (now < meta.breakUntil) {
+            // Break advice must win over the running status, otherwise it only
+            // appears after the work is already over.
+            next = { text: 'отдохни?', tone: 'info' };
           } else if (running) {
             next = {
               text: live.sessionInfo.toolActive ? 'работает' : 'думает',
@@ -476,8 +491,6 @@ window.__ModuleLoader__.load({
             live.sessionInfo.contextPercent >= 80
           ) {
             next = { text: `контекст ${live.sessionInfo.contextPercent}%`, tone: 'warn' };
-          } else if (now < meta.breakUntil) {
-            next = { text: 'отдохни?', tone: 'info' };
           } else if (sleeping) {
             next = { text: 'z z z', tone: 'sleep' };
           } else if (now < meta.thoughtUntil) {
@@ -499,6 +512,25 @@ window.__ModuleLoader__.load({
         return () => window.clearInterval(timer);
       }, []);
 
+      React.useEffect(() => {
+        const measure = () => {
+          const node = cloudRef.current;
+          if (!node) return;
+          const rect = node.getBoundingClientRect();
+          const margin = 8;
+          const delta =
+            rect.right > window.innerWidth - margin
+              ? window.innerWidth - margin - rect.right
+              : rect.left < margin
+                ? margin - rect.left
+                : 0;
+          if (Math.abs(delta) > 0.5) setCloudShift((previous) => previous + delta);
+        };
+        measure();
+        window.addEventListener('resize', measure);
+        return () => window.removeEventListener('resize', measure);
+      }, [cloud?.text, below]);
+
       const openSession = () => {
         if (!sessionId || !host || typeof host.get !== 'function') return;
         const workspace = host.get('uiWorkspace');
@@ -510,22 +542,10 @@ window.__ModuleLoader__.load({
       const onPointerDown = (event) => {
         if (event.button !== undefined && event.button !== 0) return;
         if (state.dragging) return;
-        const root = rootRef.current;
-        if (!root) return;
+        const hit = hitRef.current;
+        if (!hit) return;
 
-        const rect = root.getBoundingClientRect();
-        const localX = event.clientX - rect.left;
-        const localY = event.clientY - rect.top;
-        if (
-          localX < OFF_X - 4 ||
-          localX > OFF_X + CHAR_W + 4 ||
-          localY < OFF_Y - 4 ||
-          localY > OFF_Y + CHAR_H + 4
-        ) {
-          return;
-        }
-
-        root.setPointerCapture?.(event.pointerId);
+        hit.setPointerCapture?.(event.pointerId);
         state.dragging = true;
         state.stuck = false;
         state.anim = null;
@@ -537,7 +557,8 @@ window.__ModuleLoader__.load({
         state.lastX = event.clientX;
         state.lastY = event.clientY;
         state.lastTime = performance.now();
-        root.style.cursor = 'grabbing';
+        state.lastMoveAt = performance.now();
+        hit.style.cursor = 'grabbing';
         ensureLoop();
         event.preventDefault();
       };
@@ -549,8 +570,16 @@ window.__ModuleLoader__.load({
         const dt = Math.max(0.001, (now - state.lastTime) / 1000);
         const rawVx = (event.clientX - state.lastX) / dt;
         const rawVy = (event.clientY - state.lastY) / dt;
-        state.vx = state.vx * 0.4 + rawVx * 0.6;
-        state.vy = state.vy * 0.4 + rawVy * 0.6;
+        // A pause longer than 100 ms breaks the velocity chain, so a slow
+        // reposition followed by a wait does not launch the pet.
+        if (now - state.lastMoveAt > 100) {
+          state.vx = rawVx;
+          state.vy = rawVy;
+        } else {
+          state.vx = state.vx * 0.4 + rawVx * 0.6;
+          state.vy = state.vy * 0.4 + rawVy * 0.6;
+        }
+        state.lastMoveAt = now;
         state.lastX = event.clientX;
         state.lastY = event.clientY;
         state.lastTime = now;
@@ -596,9 +625,13 @@ window.__ModuleLoader__.load({
         if (!state.dragging || (event && event.pointerId !== state.pointerId)) return;
         state.dragging = false;
         state.pointerId = null;
-        if (rootRef.current) {
-          rootRef.current.style.cursor = 'grab';
-          if (event) rootRef.current.releasePointerCapture?.(event.pointerId);
+        if (hitRef.current) {
+          hitRef.current.style.cursor = 'grab';
+          if (event) hitRef.current.releasePointerCapture?.(event.pointerId);
+        }
+        if (performance.now() - state.lastMoveAt > PAUSE_MS) {
+          state.vx = 0;
+          state.vy = 0;
         }
 
         const pressed = state.side !== null && state.depth > 0.04;
@@ -633,7 +666,10 @@ window.__ModuleLoader__.load({
         const scheduleEmotion = () => {
           emotionTimer = window.setTimeout(
             () => {
-              if (!state.dragging && !state.stuck) {
+              const reduced =
+                typeof window.matchMedia === 'function' &&
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+              if (!reduced && !state.dragging && !state.stuck) {
                 count += 1;
                 if (count % 6 === 0) {
                   playEmotion(count % 12 === 0 ? 'joy' : 'tail');
@@ -650,6 +686,13 @@ window.__ModuleLoader__.load({
 
         const onResize = () => {
           const { maxX, maxY } = bounds();
+          if (state.stuck && state.side) {
+            // A pet stuck to a wall must follow that wall when the window moves.
+            if (state.side === 'left') state.x = 0;
+            else if (state.side === 'right') state.x = maxX;
+            else if (state.side === 'up') state.y = 0;
+            else if (state.side === 'down') state.y = maxY;
+          }
           state.x = clamp(state.x, 0, maxX);
           state.y = clamp(state.y, 0, maxY);
           paint(performance.now());
@@ -691,17 +734,17 @@ window.__ModuleLoader__.load({
           onPointerMove,
           onPointerUp: endDrag,
           onPointerCancel: endDrag,
-          'aria-hidden': true,
           style: {
             position: 'fixed',
             left: 0,
             top: 0,
             width: FRAME_CSS_W,
             height: FRAME_CSS_H,
-            pointerEvents: 'auto',
+            // The frame is transparent around the character: only the hit
+            // box below opts into pointer events, so clicks pass through.
+            pointerEvents: 'none',
             touchAction: 'none',
             userSelect: 'none',
-            cursor: 'grab',
             zIndex: 10,
             willChange: 'transform',
           },
@@ -711,19 +754,37 @@ window.__ModuleLoader__.load({
             __html: `
 @keyframes pw-breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.014,1.028)}}
 @keyframes pw-pop{from{opacity:0;transform:translate(-50%,-90%) scale(.72)}to{opacity:1;transform:translate(-50%,-100%) scale(1)}}
-.pw-cloud{position:absolute;left:50%;top:-6px;transform:translate(-50%,-100%);display:flex;align-items:center;justify-content:center;min-height:26px;max-width:190px;padding:4px 10px;border:3px solid #141a26;border-radius:16px;background:#fff;box-shadow:0 3px 0 rgba(20,26,38,.14);font:700 12px/1.15 ui-sans-serif,system-ui,"Segoe UI",sans-serif;white-space:nowrap;z-index:4;cursor:pointer;animation:pw-pop .18s cubic-bezier(.2,1.5,.4,1)}
+.pw-cloud{position:absolute;left:50%;top:-6px;transform:translate(-50%,-100%);display:flex;align-items:center;justify-content:center;min-height:26px;max-width:min(190px,60vw);padding:4px 10px;border:3px solid #141a26;border-radius:16px;background:#fff;box-shadow:0 3px 0 rgba(20,26,38,.14);font:700 12px/1.15 ui-sans-serif,system-ui,"Segoe UI",sans-serif;white-space:nowrap;z-index:4;cursor:pointer;appearance:none;pointer-events:auto;animation:pw-pop .18s cubic-bezier(.2,1.5,.4,1)}
+.pw-cloud:focus-visible{outline:3px solid #f2b134;outline-offset:2px}
 .pw-cloud--below{top:auto;bottom:-6px;transform:translate(-50%,100%)}
 .pw-cloud__tail{position:absolute;left:22px;bottom:-9px;width:9px;height:9px;border:3px solid #141a26;border-radius:50%;background:#fff}
 .pw-cloud__tail--2{left:14px;bottom:-18px;width:6px;height:6px}
 .pw-cloud--below .pw-cloud__tail{bottom:auto;top:-9px}
 .pw-cloud--below .pw-cloud__tail--2{top:-18px}
+@media (prefers-reduced-motion: reduce){.pw-cloud{animation:none}.pw-breathe{animation:none}}
 `,
+          },
+        }),
+        h('div', {
+          ref: hitRef,
+          'aria-hidden': true,
+          style: {
+            position: 'absolute',
+            left: OFF_X,
+            top: OFF_Y,
+            width: CHAR_W,
+            height: CHAR_H,
+            pointerEvents: 'auto',
+            cursor: 'grab',
+            touchAction: 'none',
           },
         }),
         h(
           'div',
           {
             ref: breatheRef,
+            className: 'pw-breathe',
+            'aria-hidden': true,
             style: {
               position: 'absolute',
               inset: 0,
@@ -735,11 +796,17 @@ window.__ModuleLoader__.load({
         ),
         cloud
           ? h(
-              'div',
+              'button',
               {
                 key: cloud.text,
+                ref: cloudRef,
+                type: 'button',
                 className: `pw-cloud${below ? ' pw-cloud--below' : ''}`,
-                style: { color: toneColor },
+                'aria-label': `Питомец: ${cloud.text}`,
+                style: {
+                  color: toneColor,
+                  left: `calc(50% + ${cloudShift}px)`,
+                },
                 onPointerDown: (event) => event.stopPropagation(),
                 onClick: (event) => {
                   event.stopPropagation();
@@ -747,10 +814,12 @@ window.__ModuleLoader__.load({
                 },
                 onMouseEnter: () => setHovered(true),
                 onMouseLeave: () => setHovered(false),
+                onFocus: () => setHovered(true),
+                onBlur: () => setHovered(false),
               },
               h('span', null, cloud.text),
-              h('i', { className: 'pw-cloud__tail' }),
-              h('i', { className: 'pw-cloud__tail pw-cloud__tail--2' }),
+              h('i', { className: 'pw-cloud__tail', 'aria-hidden': true }),
+              h('i', { className: 'pw-cloud__tail pw-cloud__tail--2', 'aria-hidden': true }),
             )
           : null,
       );
