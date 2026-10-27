@@ -77,14 +77,53 @@ window.__ModuleLoader__.load({
     const BREAK_AFTER_MS = 50 * 60_000;
     const BREAK_REPEAT_MS = 45 * 60_000;
 
+    const LOCALE_NS = 'pajama-whale';
+
+    const LOCALE_DICT = {
+      en: {
+        'status.thinking': 'thinking',
+        'status.working': 'working',
+        'status.error': '! error',
+        'status.waiting': '?',
+        'context.percent': 'context {percent}%',
+        'break.suggest': 'take a break?',
+        'sleep.zzz': 'z z z',
+        'aria.cloud': 'Pet: {status}',
+        'thought.hmm': 'hmm…',
+        'thought.clouds': 'clouds…',
+        'thought.heart': '♡',
+        'thought.more': 'just a little more',
+        'thought.drink': 'could use a drink…',
+        'thought.dots': '...',
+        'thought.interesting': 'interesting',
+      },
+      zh: {
+        'status.thinking': '思考中',
+        'status.working': '工作中',
+        'status.error': '! 出错了',
+        'status.waiting': '?',
+        'context.percent': '上下文 {percent}%',
+        'break.suggest': '休息一下？',
+        'sleep.zzz': 'z z z',
+        'aria.cloud': '宠物：{status}',
+        'thought.hmm': '嗯…',
+        'thought.clouds': '云朵…',
+        'thought.heart': '♡',
+        'thought.more': '再一点点',
+        'thought.drink': '好想喝点东西…',
+        'thought.dots': '...',
+        'thought.interesting': '有意思',
+      },
+    };
+
     const THOUGHTS = [
-      'хм…',
-      'облака…',
-      '♡',
-      'ещё чуть-чуть',
-      'попить бы…',
-      '...',
-      'интересно',
+      'thought.hmm',
+      'thought.clouds',
+      'thought.heart',
+      'thought.more',
+      'thought.drink',
+      'thought.dots',
+      'thought.interesting',
     ];
 
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -156,12 +195,27 @@ window.__ModuleLoader__.load({
     };
 
     function Pet(props) {
-      const { host, useSessions, useSessionStatus } = props;
+      const { host, useSessions, useSessionStatus, t } = props;
+
+      // The slot supplies `t` bound to this plugin's locale namespace; the
+      // English fallback keeps the component usable if that ever changes.
+      const tr =
+        typeof t === 'function'
+          ? t
+          : (key, params) => {
+              const template = LOCALE_DICT.en[key] ?? key;
+              return params
+                ? template.replace(/\{(\w+)\}/g, (match, name) =>
+                    name in params ? String(params[name]) : match,
+                  )
+                : template;
+            };
+      const trRef = React.useRef(tr);
+      trRef.current = tr;
 
       const rootRef = React.useRef(null);
       const hitRef = React.useRef(null);
       const layerARef = React.useRef(null);
-      const breatheRef = React.useRef(null);
       const frameRef = React.useRef(0);
 
       /* ---- session data ------------------------------------------------ */
@@ -186,6 +240,10 @@ window.__ModuleLoader__.load({
       const [below, setBelow] = React.useState(false);
       const [cloudShift, setCloudShift] = React.useState(0);
       const cloudRef = React.useRef(null);
+      const [visible, setVisible] = React.useState(() =>
+        typeof document === 'undefined' ? true : !document.hidden,
+      );
+      const [breathing, setBreathing] = React.useState(false);
 
       const liveRef = React.useRef({});
       liveRef.current = { status, sessionInfo, hovered, state: null };
@@ -264,11 +322,6 @@ window.__ModuleLoader__.load({
         setLayer(layerARef.current, key, sheet, frames, base, 1);
 
         root.style.transform = `translate3d(${state.x - OFF_X}px, ${state.y - OFF_Y}px, 0)`;
-
-        if (breatheRef.current) {
-          breatheRef.current.style.animationPlayState =
-            state.dragging || state.stuck ? 'paused' : 'running';
-        }
       };
 
       const tick = (now) => {
@@ -472,29 +525,35 @@ window.__ModuleLoader__.load({
 
           let next = null;
           if (live.hovered && live.sessionInfo.contextPercent !== null) {
-            next = { text: `контекст ${live.sessionInfo.contextPercent}%`, tone: 'info' };
+            next = {
+              text: trRef.current('context.percent', { percent: live.sessionInfo.contextPercent }),
+              tone: 'info',
+            };
           } else if (waiting) {
-            next = { text: '?', tone: 'wait' };
+            next = { text: trRef.current('status.waiting'), tone: 'wait' };
           } else if (now < meta.errorUntil) {
-            next = { text: '! ошибка', tone: 'error' };
+            next = { text: trRef.current('status.error'), tone: 'error' };
           } else if (now < meta.breakUntil) {
             // Break advice must win over the running status, otherwise it only
             // appears after the work is already over.
-            next = { text: 'отдохни?', tone: 'info' };
+            next = { text: trRef.current('break.suggest'), tone: 'info' };
           } else if (running) {
             next = {
-              text: live.sessionInfo.toolActive ? 'работает' : 'думает',
+              text: trRef.current(live.sessionInfo.toolActive ? 'status.working' : 'status.thinking'),
               tone: 'work',
             };
           } else if (
             live.sessionInfo.contextPercent !== null &&
             live.sessionInfo.contextPercent >= 80
           ) {
-            next = { text: `контекст ${live.sessionInfo.contextPercent}%`, tone: 'warn' };
+            next = {
+              text: trRef.current('context.percent', { percent: live.sessionInfo.contextPercent }),
+              tone: 'warn',
+            };
           } else if (sleeping) {
-            next = { text: 'z z z', tone: 'sleep' };
+            next = { text: trRef.current('sleep.zzz'), tone: 'sleep' };
           } else if (now < meta.thoughtUntil) {
-            next = { text: meta.thought, tone: 'thought' };
+            next = { text: trRef.current(meta.thought), tone: 'thought' };
           }
 
           if (dragging) next = null;
@@ -530,6 +589,50 @@ window.__ModuleLoader__.load({
         window.addEventListener('resize', measure);
         return () => window.removeEventListener('resize', measure);
       }, [cloud?.text, below]);
+
+      React.useEffect(() => {
+        const update = () => setVisible(!document.hidden);
+        document.addEventListener('visibilitychange', update);
+        update();
+        return () => document.removeEventListener('visibilitychange', update);
+      }, []);
+
+      React.useEffect(() => {
+        if (!visible) {
+          setBreathing(false);
+          return undefined;
+        }
+        const reduced =
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduced) return undefined;
+
+        // Breathing runs in short sessions instead of forever: that keeps the
+        // compositor asleep most of the time and drops idle GPU usage to zero.
+        let cancelled = false;
+        let startTimer = 0;
+        let endTimer = 0;
+        const schedule = () => {
+          startTimer = window.setTimeout(
+            () => {
+              if (cancelled) return;
+              setBreathing(true);
+              endTimer = window.setTimeout(() => {
+                if (cancelled) return;
+                setBreathing(false);
+                schedule();
+              }, 3600 + Math.random() * 400);
+            },
+            25_000 + Math.random() * 15_000,
+          );
+        };
+        schedule();
+        return () => {
+          cancelled = true;
+          window.clearTimeout(startTimer);
+          window.clearTimeout(endTimer);
+        };
+      }, [visible]);
 
       const openSession = () => {
         if (!sessionId || !host || typeof host.get !== 'function') return;
@@ -761,7 +864,9 @@ window.__ModuleLoader__.load({
 .pw-cloud__tail--2{left:14px;bottom:-18px;width:6px;height:6px}
 .pw-cloud--below .pw-cloud__tail{bottom:auto;top:-9px}
 .pw-cloud--below .pw-cloud__tail--2{top:-18px}
-@media (prefers-reduced-motion: reduce){.pw-cloud{animation:none}.pw-breathe{animation:none}}
+@media (prefers-reduced-motion: reduce){.pw-cloud{animation:none}.pw-breathe--active{animation:none}}
+.pw-breathe{transform-origin:50% 100%}
+.pw-breathe--active{animation:pw-breathe 3.4s ease-in-out 1}
 `,
           },
         }),
@@ -782,14 +887,12 @@ window.__ModuleLoader__.load({
         h(
           'div',
           {
-            ref: breatheRef,
-            className: 'pw-breathe',
+            className: `pw-breathe${breathing ? ' pw-breathe--active' : ''}`,
             'aria-hidden': true,
             style: {
               position: 'absolute',
               inset: 0,
               transformOrigin: '50% 100%',
-              animation: 'pw-breathe 3.6s ease-in-out infinite',
             },
           },
           h('div', { ref: layerARef, style: layerStyle }),
@@ -802,7 +905,7 @@ window.__ModuleLoader__.load({
                 ref: cloudRef,
                 type: 'button',
                 className: `pw-cloud${below ? ' pw-cloud--below' : ''}`,
-                'aria-label': `Питомец: ${cloud.text}`,
+                'aria-label': trRef.current('aria.cloud', { status: cloud.text }),
                 style: {
                   color: toneColor,
                   left: `calc(50% + ${cloudShift}px)`,
@@ -828,6 +931,9 @@ window.__ModuleLoader__.load({
     return {
       inject: ['slots'],
       apply(ctx) {
+        const disposeLocale = ctx.locale?.register?.(LOCALE_NS, LOCALE_DICT);
+        if (typeof disposeLocale === 'function') ctx.effect(() => disposeLocale);
+
         const Bound = (slotProps) => h(Pet, Object.assign({ host: ctx }, slotProps));
         ctx.slots.inject('shell.overlay', () =>
           ctx.slots.register(
@@ -835,6 +941,7 @@ window.__ModuleLoader__.load({
               name: 'shell.overlay',
               id: 'pajama-whale',
               order: 10,
+              locale: LOCALE_NS,
             },
             Bound,
           ),

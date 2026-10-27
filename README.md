@@ -28,14 +28,18 @@ this directory.
   their own while he is idle.
 - **Thought cloud.** Above his head, in priority order:
   - `?` — the agent waits for approval or an answer;
-  - `! ошибка` — the last turn failed;
-  - `думает` / `работает` — the current turn is running (with or without a tool
+  - `! error` — the last turn failed;
+  - `thinking` / `working` — the current turn is running (with or without a tool
     call so far);
-  - `контекст N%` — context pressure above 80%;
-  - `отдохни?` — after 50 minutes of continuous work;
+  - `context N%` — context pressure above 80%;
+  - `take a break?` — after 50 minutes of continuous work;
   - `z z z` — idle for 8 minutes (2 at night);
   - random idle thoughts every couple of minutes.
   Hover the cloud to see context pressure; click it to open the watched session.
+- **Follows the DSH language.** English and Chinese dictionaries ship with the
+  plugin and follow Settings → Language; anything else falls back to English.
+- **Cheap when idle.** Breathing runs in short 3.4 s sessions every 25–40 s and
+  stops completely when the window is hidden, so the compositor stays asleep.
 - **Remembers its place.** Position is stored in `localStorage` and clamped on
   window resize.
 
