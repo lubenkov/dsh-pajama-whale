@@ -245,6 +245,8 @@ window.__ModuleLoader__.load({
       const [below, setBelow] = React.useState(false);
       const [cloudShift, setCloudShift] = React.useState(0);
       const cloudRef = React.useRef(null);
+      const hoverRef = React.useRef(false);
+      const lastCloudOpenRef = React.useRef(0);
       const [visible, setVisible] = React.useState(() =>
         typeof document === 'undefined' ? true : !document.hidden,
       );
@@ -671,6 +673,45 @@ window.__ModuleLoader__.load({
         workspace?.openSession?.(sessionId);
       };
 
+      // Hover and click are tracked on the window instead of the button: other
+      // overlay occupants can sit above us, and hit testing would then never
+      // reach the cloud even though it is visible.
+      React.useEffect(() => {
+        const insideCloud = (event) => {
+          const node = cloudRef.current;
+          if (!node) return false;
+          const rect = node.getBoundingClientRect();
+          return (
+            event.clientX >= rect.left &&
+            event.clientX <= rect.right &&
+            event.clientY >= rect.top &&
+            event.clientY <= rect.bottom
+          );
+        };
+
+        const onMove = (event) => {
+          const inside = insideCloud(event);
+          if (inside !== hoverRef.current) {
+            hoverRef.current = inside;
+            setHovered(inside);
+          }
+        };
+
+        const onDown = (event) => {
+          if (!insideCloud(event)) return;
+          lastCloudOpenRef.current = performance.now();
+          openSession();
+        };
+
+        window.addEventListener('pointermove', onMove, { passive: true, capture: true });
+        window.addEventListener('pointerdown', onDown, true);
+        return () => {
+          window.removeEventListener('pointermove', onMove, true);
+          window.removeEventListener('pointerdown', onDown, true);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [sessionId]);
+
       /* ---- pointer handling ------------------------------------------- */
 
       const onPointerDown = (event) => {
@@ -943,6 +984,7 @@ window.__ModuleLoader__.load({
                 onPointerDown: (event) => event.stopPropagation(),
                 onClick: (event) => {
                   event.stopPropagation();
+                  if (performance.now() - lastCloudOpenRef.current < 400) return;
                   openSession();
                 },
                 onPointerEnter: () => setHovered(true),
