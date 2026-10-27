@@ -250,8 +250,27 @@ window.__ModuleLoader__.load({
       );
       const [breathing, setBreathing] = React.useState(false);
 
+      // Context pressure can also arrive through the session list projections;
+      // the binding face is not the only source, so merge both.
+      const listPressure =
+        sessions?.projectionsBySession?.[sessionId]?.values?.contextPressure ??
+        sessions?.byId?.[sessionId]?.projectionValues?.contextPressure;
+      const listPercent =
+        listPressure?.contextWindow && (listPressure.projectedTokens ?? listPressure.pressureTokens) !== undefined
+          ? Math.min(
+              100,
+              Math.round(
+                ((listPressure.projectedTokens ?? listPressure.pressureTokens) /
+                  listPressure.contextWindow) *
+                  100,
+              ),
+            )
+          : null;
+      const contextPercent = sessionInfo.contextPercent ?? listPercent;
+      const sessionTitle = sessions?.byId?.[sessionId]?.title ?? null;
+
       const liveRef = React.useRef({});
-      liveRef.current = { status, sessionInfo, hovered, state: null };
+      liveRef.current = { status, sessionInfo, hovered, state: null, contextPercent, sessionTitle };
 
       const stateRef = React.useRef(null);
       if (stateRef.current === null) {
@@ -529,11 +548,21 @@ window.__ModuleLoader__.load({
             idleFor > IDLE_MS || ((hour >= 23 || hour < 8) && idleFor > NIGHT_IDLE_MS);
 
           let next = null;
-          if (live.hovered && live.sessionInfo.contextPercent !== null) {
-            next = {
-              text: tr('context.percent', { percent: live.sessionInfo.contextPercent }),
-              tone: 'info',
-            };
+          if (live.hovered) {
+            // Hover must always produce a visible answer: the percentage when
+            // it is known, otherwise the watched session title.
+            next =
+              live.contextPercent !== null
+                ? {
+                    text: tr('context.percent', { percent: live.contextPercent }),
+                    tone: 'info',
+                  }
+                : {
+                    text: live.sessionTitle
+                      ? String(live.sessionTitle).slice(0, 32)
+                      : '…',
+                    tone: 'info',
+                  };
           } else if (waiting) {
             next = { text: tr('status.waiting'), tone: 'wait' };
           } else if (now < meta.errorUntil) {
@@ -547,12 +576,9 @@ window.__ModuleLoader__.load({
               text: tr(live.sessionInfo.toolActive ? 'status.working' : 'status.thinking'),
               tone: 'work',
             };
-          } else if (
-            live.sessionInfo.contextPercent !== null &&
-            live.sessionInfo.contextPercent >= 80
-          ) {
+          } else if (live.contextPercent !== null && live.contextPercent >= 80) {
             next = {
-              text: tr('context.percent', { percent: live.sessionInfo.contextPercent }),
+              text: tr('context.percent', { percent: live.contextPercent }),
               tone: 'warn',
             };
           } else if (sleeping) {
@@ -906,7 +932,6 @@ window.__ModuleLoader__.load({
           ? h(
               'button',
               {
-                key: cloud.text,
                 ref: cloudRef,
                 type: 'button',
                 className: `pw-cloud${below ? ' pw-cloud--below' : ''}`,
@@ -920,8 +945,8 @@ window.__ModuleLoader__.load({
                   event.stopPropagation();
                   openSession();
                 },
-                onMouseEnter: () => setHovered(true),
-                onMouseLeave: () => setHovered(false),
+                onPointerEnter: () => setHovered(true),
+                onPointerLeave: () => setHovered(false),
                 onFocus: () => setHovered(true),
                 onBlur: () => setHovered(false),
               },
