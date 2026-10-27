@@ -195,13 +195,20 @@ window.__ModuleLoader__.load({
     };
 
     function Pet(props) {
-      const { host, useSessions, useSessionStatus, t } = props;
+      const { host, localeFace, useSessions, useSessionStatus } = props;
 
-      // The slot supplies `t` bound to this plugin's locale namespace; the
-      // English fallback keeps the component usable if that ever changes.
+      // The locale service is read directly instead of through the slot's
+      // `locale` option: that keeps the pet alive even if dictionary
+      // registration lags behind slot registration.
+      const [, bumpLocale] = React.useReducer((count) => count + 1, 0);
+      React.useEffect(() => {
+        if (!localeFace || typeof localeFace.subscribe !== 'function') return undefined;
+        return localeFace.subscribe(() => bumpLocale());
+      }, [localeFace]);
+
       const tr =
-        typeof t === 'function'
-          ? t
+        localeFace && typeof localeFace.bind === 'function'
+          ? localeFace.bind(LOCALE_NS)
           : (key, params) => {
               const template = LOCALE_DICT.en[key] ?? key;
               return params
@@ -210,8 +217,6 @@ window.__ModuleLoader__.load({
                   )
                 : template;
             };
-      const trRef = React.useRef(tr);
-      trRef.current = tr;
 
       const rootRef = React.useRef(null);
       const hitRef = React.useRef(null);
@@ -526,20 +531,20 @@ window.__ModuleLoader__.load({
           let next = null;
           if (live.hovered && live.sessionInfo.contextPercent !== null) {
             next = {
-              text: trRef.current('context.percent', { percent: live.sessionInfo.contextPercent }),
+              text: tr('context.percent', { percent: live.sessionInfo.contextPercent }),
               tone: 'info',
             };
           } else if (waiting) {
-            next = { text: trRef.current('status.waiting'), tone: 'wait' };
+            next = { text: tr('status.waiting'), tone: 'wait' };
           } else if (now < meta.errorUntil) {
-            next = { text: trRef.current('status.error'), tone: 'error' };
+            next = { text: tr('status.error'), tone: 'error' };
           } else if (now < meta.breakUntil) {
             // Break advice must win over the running status, otherwise it only
             // appears after the work is already over.
-            next = { text: trRef.current('break.suggest'), tone: 'info' };
+            next = { text: tr('break.suggest'), tone: 'info' };
           } else if (running) {
             next = {
-              text: trRef.current(live.sessionInfo.toolActive ? 'status.working' : 'status.thinking'),
+              text: tr(live.sessionInfo.toolActive ? 'status.working' : 'status.thinking'),
               tone: 'work',
             };
           } else if (
@@ -547,13 +552,13 @@ window.__ModuleLoader__.load({
             live.sessionInfo.contextPercent >= 80
           ) {
             next = {
-              text: trRef.current('context.percent', { percent: live.sessionInfo.contextPercent }),
+              text: tr('context.percent', { percent: live.sessionInfo.contextPercent }),
               tone: 'warn',
             };
           } else if (sleeping) {
-            next = { text: trRef.current('sleep.zzz'), tone: 'sleep' };
+            next = { text: tr('sleep.zzz'), tone: 'sleep' };
           } else if (now < meta.thoughtUntil) {
-            next = { text: trRef.current(meta.thought), tone: 'thought' };
+            next = { text: tr(meta.thought), tone: 'thought' };
           }
 
           if (dragging) next = null;
@@ -905,7 +910,7 @@ window.__ModuleLoader__.load({
                 ref: cloudRef,
                 type: 'button',
                 className: `pw-cloud${below ? ' pw-cloud--below' : ''}`,
-                'aria-label': trRef.current('aria.cloud', { status: cloud.text }),
+                'aria-label': tr('aria.cloud', { status: cloud.text }),
                 style: {
                   color: toneColor,
                   left: `calc(50% + ${cloudShift}px)`,
@@ -931,17 +936,30 @@ window.__ModuleLoader__.load({
     return {
       inject: ['slots'],
       apply(ctx) {
-        const disposeLocale = ctx.locale?.register?.(LOCALE_NS, LOCALE_DICT);
-        if (typeof disposeLocale === 'function') ctx.effect(() => disposeLocale);
+        let localeFace;
+        try {
+          localeFace = typeof ctx.get === 'function' ? ctx.get('locale') : ctx.locale;
+        } catch {
+          localeFace = ctx.locale;
+        }
 
-        const Bound = (slotProps) => h(Pet, Object.assign({ host: ctx }, slotProps));
+        // Registering twice (a reloaded module, another copy of the pet) must
+        // never take the whole plugin down; the existing dictionaries are fine.
+        try {
+          const disposeLocale = localeFace?.register?.(LOCALE_NS, LOCALE_DICT);
+          if (typeof disposeLocale === 'function') ctx.effect(() => disposeLocale);
+        } catch {
+          /* namespace already registered */
+        }
+
+        const Bound = (slotProps) =>
+          h(Pet, Object.assign({ host: ctx, localeFace }, slotProps));
         ctx.slots.inject('shell.overlay', () =>
           ctx.slots.register(
             {
               name: 'shell.overlay',
               id: 'pajama-whale',
               order: 10,
-              locale: LOCALE_NS,
             },
             Bound,
           ),
