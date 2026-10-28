@@ -625,7 +625,7 @@ window.__ModuleLoader__.load({
               ? 'working'
               : 'thinking'
             : sleeping
-              ? 'asleep'
+              ? 'sleepy'
               : 'idle';
           if (live.state && live.state.pose !== pose) {
             live.state.pose = pose;
@@ -790,7 +790,7 @@ window.__ModuleLoader__.load({
         };
 
         const wake = () => {
-          if (state.pose === 'asleep') {
+          if (state.pose === 'sleepy') {
             state.pose = 'idle';
             state.poseStart = performance.now();
             ensureLoop();
