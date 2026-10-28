@@ -91,6 +91,14 @@ window.__ModuleLoader__.load({
 
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+    const safeGet = (target, name) => {
+      try {
+        return typeof target?.get === 'function' ? target.get(name) : undefined;
+      } catch {
+        return undefined;
+      }
+    };
+
     const pickSessionId = (sessions) => {
       if (!sessions) return undefined;
       const ids = sessions.ids ?? [];
@@ -479,61 +487,81 @@ window.__ModuleLoader__.load({
 
         setSessionInfo({ contextPercent: null, error: null, toolActive: false, title: null });
         if (!sessionId || !host || typeof host.get !== 'function') return undefined;
-        const service = host.get('sessions');
+        const service = safeGet(host, 'sessions');
         let cancelled = false;
         let retry = 0;
         const disposers = [];
 
         const attach = () => {
           if (cancelled) return;
-          const binding = service?.binding?.(sessionId);
+          let binding = null;
+          try {
+            binding = service?.binding?.(sessionId);
+          } catch {
+            binding = null;
+          }
           if (!binding) {
 
             retry = window.setTimeout(attach, 300);
             return;
           }
 
-          const session = binding.session;
-          const pressure = session.projections?.faceOf?.('contextPressure');
-          const titleFace = session.projections?.faceOf?.('title');
-          const events = binding.eventSource;
+          try {
+            const session = binding.session;
+            const pressure = session.projections?.faceOf?.('contextPressure');
+            const titleFace = session.projections?.faceOf?.('title');
+            const events = binding.eventSource;
 
-          const read = () => {
-            const snapshot = session.getSnapshot();
-            const value = pressure?.getSnapshot?.();
-            const used = value?.projectedTokens ?? value?.pressureTokens;
-            const contextPercent =
-              used !== undefined && value?.contextWindow
-                ? Math.min(100, Math.round((used / value.contextWindow) * 100))
-                : null;
-            const toolActive = scanToolActivity(events?.getSnapshot?.());
-            const titleValue = titleFace?.getSnapshot?.();
-            const title = typeof titleValue === 'string' && titleValue !== '' ? titleValue : null;
-            setSessionInfo((previous) => {
-              if (
-                previous.contextPercent === contextPercent &&
-                previous.error === (snapshot.lastAgentError ?? null) &&
-                previous.toolActive === toolActive &&
-                previous.title === title
-              ) {
-                return previous;
+            const read = () => {
+              try {
+                const snapshot = session.getSnapshot();
+                const value = pressure?.getSnapshot?.();
+                const used = value?.projectedTokens ?? value?.pressureTokens;
+                const contextPercent =
+                  used !== undefined && value?.contextWindow
+                    ? Math.min(100, Math.round((used / value.contextWindow) * 100))
+                    : null;
+                const toolActive = scanToolActivity(events?.getSnapshot?.());
+                const titleValue = titleFace?.getSnapshot?.();
+                const title =
+                  typeof titleValue === 'string' && titleValue !== '' ? titleValue : null;
+                setSessionInfo((previous) => {
+                  if (
+                    previous.contextPercent === contextPercent &&
+                    previous.error === (snapshot.lastAgentError ?? null) &&
+                    previous.toolActive === toolActive &&
+                    previous.title === title
+                  ) {
+                    return previous;
+                  }
+                  return {
+                    contextPercent,
+                    error: snapshot.lastAgentError ?? null,
+                    toolActive,
+                    title,
+                  };
+                });
+              } catch {
+
               }
-              return {
-                contextPercent,
-                error: snapshot.lastAgentError ?? null,
-                toolActive,
-                title,
-              };
-            });
-          };
+            };
 
-          read();
-          disposers.push(
-            session.subscribe?.(read),
-            pressure?.subscribe?.(read),
-            titleFace?.subscribe?.(read),
-            events?.subscribe?.(read),
-          );
+            read();
+            const track = (subscribe) => {
+              if (typeof subscribe !== 'function') return;
+              try {
+                disposers.push(subscribe(read));
+              } catch {
+
+              }
+            };
+            track(session.subscribe);
+            track(pressure?.subscribe);
+            track(titleFace?.subscribe);
+            track(events?.subscribe);
+          } catch {
+            retry = window.setTimeout(attach, 300);
+          }
         };
 
         attach();
@@ -755,8 +783,12 @@ window.__ModuleLoader__.load({
 
       const openSession = () => {
         if (!sessionId || !host || typeof host.get !== 'function') return;
-        const workspace = host.get('uiWorkspace');
-        workspace?.openSession?.(sessionId);
+        try {
+          const workspace = host.get('uiWorkspace');
+          workspace?.openSession?.(sessionId);
+        } catch {
+
+        }
       };
 
       React.useEffect(() => {
