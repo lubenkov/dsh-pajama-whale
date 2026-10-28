@@ -11,9 +11,11 @@ thought cloud with what the agent is doing.
 ## Install
 
 ```sh
-dsh plugin add github:lubenkov/dsh-pajama-whale
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.1.0
 ```
 
+Replace `web` with your profile name (for example `desktop`). The `#v0.1.0`
+suffix pins the install to the tagged release instead of the moving `master`.
 Or install the current working copy with the plugin manager by pointing it at
 this directory.
 
@@ -29,10 +31,11 @@ this directory.
 - **Thought cloud.** Above his head, in priority order:
   - `?` — the agent waits for approval or an answer;
   - `! error` — the last turn failed;
+  - `take a break?` — after 50 minutes of continuous work (up to 3 minutes of
+    pause still counts as continuous);
   - `thinking` / `working` — the current turn is running (with or without a tool
     call so far);
   - `context N%` — context pressure above 80%;
-  - `take a break?` — after 50 minutes of continuous work;
   - `z z z` — idle for 8 minutes (2 at night);
   - random idle thoughts every couple of minutes.
   Hover the cloud to see context pressure; click it to open the watched session.
@@ -40,8 +43,8 @@ this directory.
   plugin and follow Settings → Language; anything else falls back to English.
 - **Cheap when idle.** Breathing runs in short 3.4 s sessions every 25–40 s and
   stops completely when the window is hidden, so the compositor stays asleep.
-- **Remembers its place.** Position is stored in `localStorage` and clamped on
-  window resize.
+- **Remembers its place.** Position, the wall he is stuck to and the squash
+  depth are stored in `localStorage` and clamped on window resize.
 
 The pet only occupies the frame-wide overlay slot (`shell.overlay`) and never
 blocks clicks outside its own body.

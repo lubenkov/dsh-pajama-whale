@@ -51,6 +51,7 @@ window.__ModuleLoader__.load({
     const NIGHT_IDLE_MS = 2 * 60_000;
     const BREAK_AFTER_MS = 50 * 60_000;
     const BREAK_REPEAT_MS = 45 * 60_000;
+    const BREAK_GRACE_MS = 3 * 60_000;
 
     const LOCALE_NS = 'pajama-whale';
 
@@ -141,13 +142,16 @@ window.__ModuleLoader__.load({
       }
     };
 
-    const storePosition = (x, y) => {
+    const storePosition = (x, y, side = null, depth = 0, stuck = false) => {
       try {
         window.localStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({
             xRatio: window.innerWidth > 0 ? clamp(x, 0, window.innerWidth) / window.innerWidth : 0,
             yRatio: window.innerHeight > 0 ? clamp(y, 0, window.innerHeight) / window.innerHeight : 0,
+            side,
+            depth,
+            stuck,
           }),
         );
       } catch {
@@ -161,12 +165,27 @@ window.__ModuleLoader__.load({
         return {
           x: Math.max(16, window.innerWidth - CHAR_W - 28),
           y: Math.max(16, window.innerHeight - CHAR_H - 96),
+          side: null,
+          depth: 0,
+          stuck: false,
         };
       }
-      return {
-        x: clamp(stored.xRatio * window.innerWidth, 0, Math.max(0, window.innerWidth - CHAR_W)),
-        y: clamp(stored.yRatio * window.innerHeight, 0, Math.max(0, window.innerHeight - CHAR_H)),
-      };
+      const maxX = Math.max(0, window.innerWidth - CHAR_W);
+      const maxY = Math.max(0, window.innerHeight - CHAR_H);
+      let x = clamp(stored.xRatio * window.innerWidth, 0, maxX);
+      let y = clamp(stored.yRatio * window.innerHeight, 0, maxY);
+      const validSide =
+        stored.side === 'left' || stored.side === 'right' || stored.side === 'up' || stored.side === 'down';
+      const side = validSide ? stored.side : null;
+      const depth = typeof stored.depth === 'number' ? clamp(stored.depth, 0, 1) : 0;
+      const stuck = stored.stuck === true && side !== null;
+      if (stuck) {
+        if (side === 'left') x = 0;
+        if (side === 'right') x = maxX;
+        if (side === 'up') y = 0;
+        if (side === 'down') y = maxY;
+      }
+      return { x, y, side: stuck ? side : null, depth: stuck ? depth : 0, stuck };
     };
 
     function Pet(props) {
@@ -299,10 +318,10 @@ window.__ModuleLoader__.load({
           y: start.y,
           vx: 0,
           vy: 0,
-          side: null,
-          depth: 0,
-          depthSmooth: 0,
-          stuck: false,
+          side: start.side,
+          depth: start.depth,
+          depthSmooth: start.depth,
+          stuck: start.stuck,
           dragging: false,
           pointerId: null,
           grabX: 0,
@@ -310,6 +329,7 @@ window.__ModuleLoader__.load({
           lastX: 0,
           lastY: 0,
           lastTime: 0,
+          lastPointerTime: 0,
           lastMoveAt: 0,
           anim: null,
         };
@@ -413,7 +433,9 @@ window.__ModuleLoader__.load({
             state.stuck = true;
           }
 
-          if (state.stuck) storePosition(state.x, state.y);
+          if (state.stuck) {
+            storePosition(state.x, state.y, state.side, state.depth, true);
+          }
         }
 
         paint(now);
@@ -521,6 +543,7 @@ window.__ModuleLoader__.load({
         busySince: 0,
         breakUntil: 0,
         breakShownAt: 0,
+        idleSince: 0,
         nextThoughtAt: Date.now() + 60_000,
         thought: null,
         thoughtUntil: 0,
@@ -539,9 +562,11 @@ window.__ModuleLoader__.load({
 
           if (running || dragging) {
             meta.lastActive = now;
+            meta.idleSince = 0;
             if (!meta.busySince) meta.busySince = now;
           } else {
-            meta.busySince = 0;
+            if (!meta.idleSince) meta.idleSince = now;
+            if (now - meta.idleSince > BREAK_GRACE_MS) meta.busySince = 0;
           }
 
           if (live.sessionInfo.error && live.sessionInfo.error !== meta.errorSeen) {
@@ -620,28 +645,41 @@ window.__ModuleLoader__.load({
             }
             return next;
           });
+          measureCloudRef.current();
         }, 500);
 
         return () => window.clearInterval(timer);
       }, []);
 
+      const measureCloud = () => {
+        const node = cloudRef.current;
+        if (!node) {
+          setCloudShift((previous) => (previous === 0 ? previous : 0));
+          return;
+        }
+        const root = rootRef.current;
+        if (!root) return;
+        const width = node.offsetWidth;
+        if (width === 0) return;
+        const rootRect = root.getBoundingClientRect();
+        const anchorX = rootRect.left + rootRect.width / 2;
+        const margin = 8;
+        const baseLeft = anchorX - width / 2;
+        const targetLeft = Math.min(
+          Math.max(baseLeft, margin),
+          Math.max(margin, window.innerWidth - margin - width),
+        );
+        const shift = targetLeft - baseLeft;
+        setCloudShift((previous) => (Math.abs(previous - shift) < 0.5 ? previous : shift));
+      };
+      const measureCloudRef = React.useRef(measureCloud);
+      measureCloudRef.current = measureCloud;
+
       React.useEffect(() => {
-        const measure = () => {
-          const node = cloudRef.current;
-          if (!node) return;
-          const rect = node.getBoundingClientRect();
-          const margin = 8;
-          const delta =
-            rect.right > window.innerWidth - margin
-              ? window.innerWidth - margin - rect.right
-              : rect.left < margin
-                ? margin - rect.left
-                : 0;
-          if (Math.abs(delta) > 0.5) setCloudShift((previous) => previous + delta);
-        };
-        measure();
-        window.addEventListener('resize', measure);
-        return () => window.removeEventListener('resize', measure);
+        measureCloudRef.current();
+        const onResize = () => measureCloudRef.current();
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
       }, [cloud?.text, below]);
 
       React.useEffect(() => {
@@ -734,7 +772,11 @@ window.__ModuleLoader__.load({
         const hit = hitRef.current;
         if (!hit) return;
 
-        hit.setPointerCapture?.(event.pointerId);
+        try {
+          hit.setPointerCapture?.(event.pointerId);
+        } catch {
+
+        }
         state.dragging = true;
         state.stuck = false;
         state.anim = null;
@@ -746,6 +788,7 @@ window.__ModuleLoader__.load({
         state.lastX = event.clientX;
         state.lastY = event.clientY;
         state.lastTime = performance.now();
+        state.lastPointerTime = performance.now();
         state.lastMoveAt = performance.now();
         hit.style.cursor = 'grabbing';
         ensureLoop();
@@ -756,7 +799,7 @@ window.__ModuleLoader__.load({
         if (!state.dragging || event.pointerId !== state.pointerId) return;
 
         const now = performance.now();
-        const dt = Math.max(0.001, (now - state.lastTime) / 1000);
+        const dt = Math.max(0.001, (now - state.lastPointerTime) / 1000);
         const rawVx = (event.clientX - state.lastX) / dt;
         const rawVy = (event.clientY - state.lastY) / dt;
 
@@ -770,6 +813,7 @@ window.__ModuleLoader__.load({
         state.lastMoveAt = now;
         state.lastX = event.clientX;
         state.lastY = event.clientY;
+        state.lastPointerTime = now;
         state.lastTime = now;
 
         const { maxX, maxY } = bounds();
@@ -815,7 +859,13 @@ window.__ModuleLoader__.load({
         state.pointerId = null;
         if (hitRef.current) {
           hitRef.current.style.cursor = 'grab';
-          if (event) hitRef.current.releasePointerCapture?.(event.pointerId);
+          if (event) {
+            try {
+              hitRef.current.releasePointerCapture?.(event.pointerId);
+            } catch {
+
+            }
+          }
         }
         if (performance.now() - state.lastMoveAt > PAUSE_MS) {
           state.vx = 0;
@@ -837,7 +887,7 @@ window.__ModuleLoader__.load({
           state.depth = 0;
         }
 
-        storePosition(state.x, state.y);
+        storePosition(state.x, state.y, state.side, state.depth, state.stuck);
         ensureLoop();
       };
 
