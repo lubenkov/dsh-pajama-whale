@@ -218,6 +218,15 @@ window.__ModuleLoader__.load({
                 : template;
             };
 
+      // Opt-in diagnostics: localStorage['pajama-whale:debug'] = '1'.
+      const [debug] = React.useState(() => {
+        try {
+          return window.localStorage.getItem('pajama-whale:debug') === '1';
+        } catch {
+          return false;
+        }
+      });
+
       const rootRef = React.useRef(null);
       const hitRef = React.useRef(null);
       const layerARef = React.useRef(null);
@@ -300,7 +309,22 @@ window.__ModuleLoader__.load({
       const sessionTitle = sessions?.byId?.[sessionId]?.title ?? sessionInfo.title ?? null;
 
       const liveRef = React.useRef({});
-      liveRef.current = { status, sessionInfo, hovered, state: null, contextPercent, sessionTitle };
+      liveRef.current = {
+        status,
+        sessionInfo,
+        hovered,
+        state: null,
+        contextPercent,
+        sessionTitle,
+        debug,
+        debugText: `sid ${sessionId ? String(sessionId).slice(0, 6) : '—'} ui ${
+          uiSessionId ? String(uiSessionId).slice(0, 6) : '—'
+        } slot ${typeof useSessions === 'function' ? '1' : '0'}${
+          typeof useSessionStatus === 'function' ? '1' : '0'
+        } run ${status?.running ? '1' : '0'}${uiStatus?.running ? '1' : '0'} ctx ${
+          host && typeof host.get === 'function' ? '1' : '0'
+        }`,
+      };
 
       const stateRef = React.useRef(null);
       if (stateRef.current === null) {
@@ -588,7 +612,9 @@ window.__ModuleLoader__.load({
             idleFor > IDLE_MS || ((hour >= 23 || hour < 8) && idleFor > NIGHT_IDLE_MS);
 
           let next = null;
-          if (live.hovered) {
+          if (live.debug) {
+            next = { text: live.debugText, tone: 'info' };
+          } else if (live.hovered) {
             // Hover must always produce a visible answer: the percentage when
             // it is known, otherwise the watched session title.
             next =
