@@ -195,7 +195,7 @@ window.__ModuleLoader__.load({
     };
 
     function Pet(props) {
-      const { host, localeFace, useSessions, useSessionStatus } = props;
+      const { host, localeFace, uiSession, useSessions, useSessionStatus } = props;
 
       // The locale service is read directly instead of through the slot's
       // `locale` option: that keeps the pet alive even if dictionary
@@ -225,20 +225,48 @@ window.__ModuleLoader__.load({
 
       /* ---- session data ------------------------------------------------ */
 
+      // Slot standard props are not guaranteed to reach a root-scope entry, so
+      // the uiSession service is read directly as a second source of truth.
+      const [uiSessionId, setUiSessionId] = React.useState(undefined);
+      const [uiStatus, setUiStatus] = React.useState(null);
+
+      React.useEffect(() => {
+        if (!uiSession) return undefined;
+        const read = () => {
+          const id = uiSession.current?.value?.props?.sessionId;
+          const map = uiSession.sessionStatus?.getSnapshot?.();
+          setUiSessionId(id);
+          setUiStatus(id && map ? (map.get(id) ?? null) : null);
+        };
+        read();
+        const disposers = [
+          uiSession.current?.subscribe?.(read),
+          uiSession.sessionStatus?.subscribe?.(read),
+        ];
+        return () => {
+          for (const dispose of disposers) if (typeof dispose === 'function') dispose();
+        };
+      }, [uiSession]);
+
       const useSessionsHook = typeof useSessions === 'function' ? useSessions : () => undefined;
       const sessions = useSessionsHook((snapshot) => snapshot);
-      const sessionId = React.useMemo(() => pickSessionId(sessions), [sessions]);
+      const sessionId = React.useMemo(
+        () => pickSessionId(sessions) ?? uiSessionId,
+        [sessions, uiSessionId],
+      );
 
       const useSessionStatusHook =
         typeof useSessionStatus === 'function' ? useSessionStatus : () => undefined;
-      const status = useSessionStatusHook((snapshot) =>
+      const slotStatus = useSessionStatusHook((snapshot) =>
         sessionId ? snapshot.get(sessionId) : undefined,
       );
+      const status = slotStatus ?? (uiSessionId && uiSessionId === sessionId ? uiStatus : null);
 
       const [sessionInfo, setSessionInfo] = React.useState({
         contextPercent: null,
         error: null,
         toolActive: false,
+        title: null,
       });
       const [cloud, setCloud] = React.useState(null);
       const [hovered, setHovered] = React.useState(false);
@@ -269,7 +297,7 @@ window.__ModuleLoader__.load({
             )
           : null;
       const contextPercent = sessionInfo.contextPercent ?? listPercent;
-      const sessionTitle = sessions?.byId?.[sessionId]?.title ?? null;
+      const sessionTitle = sessions?.byId?.[sessionId]?.title ?? sessionInfo.title ?? null;
 
       const liveRef = React.useRef({});
       liveRef.current = { status, sessionInfo, hovered, state: null, contextPercent, sessionTitle };
@@ -436,7 +464,7 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => {
         // A previous session's context/error must never leak into the next one.
-        setSessionInfo({ contextPercent: null, error: null, toolActive: false });
+        setSessionInfo({ contextPercent: null, error: null, toolActive: false, title: null });
         if (!sessionId || !host || typeof host.get !== 'function') return undefined;
         const service = host.get('sessions');
         let cancelled = false;
@@ -454,6 +482,7 @@ window.__ModuleLoader__.load({
 
           const session = binding.session;
           const pressure = session.projections?.faceOf?.('contextPressure');
+          const titleFace = session.projections?.faceOf?.('title');
           const events = binding.eventSource;
 
           const read = () => {
@@ -465,15 +494,23 @@ window.__ModuleLoader__.load({
                 ? Math.min(100, Math.round((used / value.contextWindow) * 100))
                 : null;
             const toolActive = scanToolActivity(events?.getSnapshot?.());
+            const titleValue = titleFace?.getSnapshot?.();
+            const title = typeof titleValue === 'string' && titleValue !== '' ? titleValue : null;
             setSessionInfo((previous) => {
               if (
                 previous.contextPercent === contextPercent &&
                 previous.error === (snapshot.lastAgentError ?? null) &&
-                previous.toolActive === toolActive
+                previous.toolActive === toolActive &&
+                previous.title === title
               ) {
                 return previous;
               }
-              return { contextPercent, error: snapshot.lastAgentError ?? null, toolActive };
+              return {
+                contextPercent,
+                error: snapshot.lastAgentError ?? null,
+                toolActive,
+                title,
+              };
             });
           };
 
@@ -481,6 +518,7 @@ window.__ModuleLoader__.load({
           disposers.push(
             session.subscribe?.(read),
             pressure?.subscribe?.(read),
+            titleFace?.subscribe?.(read),
             events?.subscribe?.(read),
           );
         };
@@ -1019,8 +1057,15 @@ window.__ModuleLoader__.load({
           /* namespace already registered */
         }
 
+        let uiSession;
+        try {
+          uiSession = typeof ctx.get === 'function' ? ctx.get('uiSession') : undefined;
+        } catch {
+          uiSession = undefined;
+        }
+
         const Bound = (slotProps) =>
-          h(Pet, Object.assign({ host: ctx, localeFace }, slotProps));
+          h(Pet, Object.assign({ host: ctx, localeFace, uiSession }, slotProps));
         ctx.slots.inject('shell.overlay', () =>
           ctx.slots.register(
             {
