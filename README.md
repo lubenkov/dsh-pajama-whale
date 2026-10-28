@@ -11,10 +11,10 @@ thought cloud with what the agent is doing.
 ## Install
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.2.0
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.2.1
 ```
 
-Replace `web` with your profile name (for example `desktop`). The `#v0.2.0`
+Replace `web` with your profile name (for example `desktop`). The `#v0.2.1`
 suffix pins the install to the tagged release instead of the moving `master`.
 Or install the current working copy with the plugin manager by pointing it at
 this directory.

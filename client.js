@@ -231,6 +231,7 @@ window.__ModuleLoader__.load({
       const frameRef = React.useRef(0);
       const lastAgentRef = React.useRef(Date.now());
       const lastTouchRef = React.useRef(Date.now());
+      const petHoverRef = React.useRef(false);
 
       const [uiSessionId, setUiSessionId] = React.useState(undefined);
       const [uiStatus, setUiStatus] = React.useState(null);
@@ -584,6 +585,8 @@ window.__ModuleLoader__.load({
           const dragging = live.state?.dragging === true;
           const meta = metaRef.current;
 
+          if (petHoverRef.current) lastTouchRef.current = now;
+
           if (running || dragging) {
             meta.lastActive = now;
             meta.idleSince = 0;
@@ -639,14 +642,10 @@ window.__ModuleLoader__.load({
             }
           }
 
-          if (running || now - lastTouchRef.current < 5000) meta.yawned = false;
-          if (
-            !running &&
-            !sleeping &&
-            !meta.yawned &&
-            (now - lastAgentRef.current > YAWN_AFTER_MS ||
-              now - lastTouchRef.current > YAWN_AFTER_MS)
-          ) {
+          if (running || petHoverRef.current || now - lastTouchRef.current < 5000) {
+            meta.yawned = false;
+          }
+          if (!running && !sleeping && !meta.yawned && quietFor > YAWN_AFTER_MS) {
             meta.yawned = true;
             playEmotion('yawn');
           }
@@ -804,7 +803,9 @@ window.__ModuleLoader__.load({
             hoverRef.current = insideCloud;
             setHovered(insideCloud);
           }
-          if (insideCloud || insideRect(event, hitRef.current)) {
+          const touching = insideCloud || insideRect(event, hitRef.current);
+          petHoverRef.current = touching;
+          if (touching) {
             lastTouchRef.current = Date.now();
             wake();
           }
@@ -816,11 +817,17 @@ window.__ModuleLoader__.load({
           openSession();
         };
 
+        const onLeave = () => {
+          petHoverRef.current = false;
+        };
+
         window.addEventListener('pointermove', onMove, { passive: true, capture: true });
         window.addEventListener('pointerdown', onDown, true);
+        document.addEventListener('pointerleave', onLeave);
         return () => {
           window.removeEventListener('pointermove', onMove, true);
           window.removeEventListener('pointerdown', onDown, true);
+          document.removeEventListener('pointerleave', onLeave);
         };
 
       }, [sessionId]);
