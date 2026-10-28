@@ -1,10 +1,15 @@
 # dsh-pajama-whale
 
-A tiny person in a blue-whale onesie who lives in the DeepSeek Harness window.
-Drag him around: there is no gravity and no bounce, so a throw sends him
-straight into a window edge, where he sticks, squashed flat, until you pull him
-off. In his spare time he blinks, wags his tail, laughs, sleeps and shows a
-thought cloud with what the agent is doing.
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/lubenkov/dsh-pajama-whale/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/lubenkov/dsh-pajama-whale/actions/workflows/ci.yml)
+[![Platform: DeepSeek Harness](https://img.shields.io/badge/platform-DeepSeek%20Harness-4a86c2)](https://github.com/deepseek-ai/deepseek-harness)
+
+Meet the typical DeepSeek Harness developer. Drag him around — he has no
+gravity, sticks flat to the window edges, blinks, sleeps, and shows what the
+agent is doing.
+
+In his spare time he wags his tail, laughs after a finished turn, and falls
+asleep when nobody has bothered him for a minute.
 
 ![status cloud](docs/preview.png)
 
