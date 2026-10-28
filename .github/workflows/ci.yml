@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Syntax check
+        run: |
+          node --check index.js
+          node --check src/client.src.js
+          node --check tools/build-client.mjs
+          node --check tests/validate.mjs
+      - name: Rebuild client
+        run: node tools/build-client.mjs
+      - name: Verify committed build
+        run: git diff --exit-code -- client.js
+      - name: Validate package, sheets and locales
+        run: node tests/validate.mjs

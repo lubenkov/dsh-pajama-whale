@@ -1,0 +1,88 @@
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const failures = [];
+
+const fail = (message) => failures.push(message);
+const read = (path) => readFileSync(join(root, path), 'utf8');
+const exists = (path) => existsSync(join(root, path));
+
+const pkg = JSON.parse(read('package.json'));
+if (!/^\d+\.\d+\.\d+/.test(pkg.version)) fail('package.json: bad version');
+if (!pkg.dsh?.bundle?.patch) fail('package.json: missing dsh.bundle.patch');
+if (!pkg.engines?.dsh) fail('package.json: missing engines.dsh');
+if (!/0\.2\.1/.test(pkg.engines?.dsh ?? '')) fail('package.json: unexpected engines.dsh range');
+for (const file of ['index.js', 'client.js', 'cordis.patch.yml', 'LICENSE', 'README.md']) {
+  if (!exists(file)) fail(`missing ${file}`);
+}
+
+const manifest = JSON.parse(read('assets/build/manifest.json'));
+const expectedSquash = ['up', 'right', 'left', 'down'];
+const expectedEmotions = [
+  'blink',
+  'tail_wag',
+  'joy',
+  'thinking',
+  'working',
+  'surprised',
+  'yawn',
+  'sleepy',
+];
+if (manifest.cell?.join('x') !== '288x361') fail('manifest: unexpected cell size');
+
+for (const direction of expectedSquash) {
+  const entry = manifest.squash?.[direction];
+  if (entry !== 8) fail(`manifest: squash ${direction} should have 8 frames`);
+  const file = `assets/build/squash-${direction}.webp`;
+  if (!exists(file) || statSync(join(root, file)).size < 1000) fail(`missing ${file}`);
+}
+
+for (const name of expectedEmotions) {
+  const entry = manifest.emotions?.[name];
+  if (!entry || !entry.frames) fail(`manifest: emotion ${name} missing`);
+  const file = `assets/build/emo-${name}.webp`;
+  if (!exists(file) || statSync(join(root, file)).size < 1000) fail(`missing ${file}`);
+}
+
+const client = read('client.js');
+if (!client.includes('__ModuleLoader__')) fail('client.js: not a client module');
+if (client.includes('__SHEET_')) fail('client.js: unresolved sheet placeholder');
+const dataUris = client.match(/data:image\/webp;base64,/g)?.length ?? 0;
+if (dataUris !== 12) fail(`client.js: expected 12 inlined sheets, found ${dataUris}`);
+const clientBytes = statSync(join(root, 'client.js')).size;
+if (clientBytes > 4_000_000) fail(`client.js: ${clientBytes} bytes exceeds the 4 MB budget`);
+
+const source = read('src/client.src.js');
+const dictStart = source.indexOf('const LOCALE_DICT = {');
+const dictEnd = source.indexOf('const THOUGHTS');
+if (dictStart < 0 || dictEnd < 0) fail('source: locale dictionary not found');
+const dict = source.slice(dictStart, dictEnd);
+const enStart = dict.indexOf('en: {');
+const zhStart = dict.indexOf('zh: {');
+if (enStart < 0 || zhStart < 0) fail('source: en/zh dictionaries not found');
+
+const keysOf = (text) => new Set([...text.matchAll(/'([^']+)':/g)].map((match) => match[1]));
+const en = keysOf(dict.slice(enStart, zhStart));
+const zh = keysOf(dict.slice(zhStart));
+for (const key of en) if (!zh.has(key)) fail(`locale: zh is missing "${key}"`);
+for (const key of zh) if (!en.has(key)) fail(`locale: en is missing "${key}"`);
+
+const used = new Set(
+  [...source.matchAll(/'((?:status|context|break|aria|thought)\.[A-Za-z.]+)'/g)].map(
+    (match) => match[1],
+  ),
+);
+for (const key of used) if (!en.has(key)) fail(`locale: used key "${key}" is missing from en`);
+
+if (failures.length > 0) {
+  console.error('Validation failed:');
+  for (const failure of failures) console.error(` - ${failure}`);
+  process.exit(1);
+}
+
+console.log(
+  `OK: ${expectedSquash.length + expectedEmotions.length} sheets, ` +
+    `${en.size} locale keys, client ${(clientBytes / 1024 / 1024).toFixed(2)} MB`,
+);
