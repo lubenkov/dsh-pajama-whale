@@ -42,6 +42,7 @@
     "locale/*.json",
     "tools/build-client.mjs",
     "README.md",
+    "README.zh.md",
     "COMPATIBILITY.md",
     "LICENSE"
   ],
