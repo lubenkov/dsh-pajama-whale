@@ -11,10 +11,10 @@ thought cloud with what the agent is doing.
 ## Install
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.0
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.1
 ```
 
-Replace `web` with your profile name (for example `desktop`). The `#v0.3.0`
+Replace `web` with your profile name (for example `desktop`). The `#v0.3.1`
 suffix pins the install to the tagged release instead of the moving `master`.
 Or install the current working copy with the plugin manager by pointing it at
 this directory.
@@ -57,6 +57,8 @@ blocks clicks outside its own body.
 ## Development
 
 Requirements: Node 20+, Python 3 with Pillow (only for rebuilding sprites).
+Tested DSH versions and the fallback behaviour are listed in
+[COMPATIBILITY.md](COMPATIBILITY.md).
 
 ```sh
 # 1. pack the source frames into WebP strips (needs assets/sprites/)
@@ -64,6 +66,9 @@ python tools/build-sheets.py
 
 # 2. inline the strips into the browser module
 node tools/build-client.mjs
+
+# 3. validate the package, sheets, locales and size budget
+node tests/validate.mjs
 ```
 
 `assets/sprites/` is the generated artwork pack and is not committed because of

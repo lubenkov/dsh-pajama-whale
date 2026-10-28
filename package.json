@@ -1,9 +1,12 @@
 {
   "name": "dsh-pajama-whale",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A tiny person in a blue-whale onesie you can drag around the DSH window; he sticks to the window edges, pressed flat, and blinks now and then.",
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "dsh": ">=0.2.1-rc.2 <0.3.0"
+  },
   "author": "lubenkov (https://github.com/lubenkov)",
   "repository": {
     "type": "git",
@@ -34,6 +37,7 @@
     "assets/build/*.webp",
     "tools/build-client.mjs",
     "README.md",
+    "COMPATIBILITY.md",
     "LICENSE"
   ],
   "dsh": {
