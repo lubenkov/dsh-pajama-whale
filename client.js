@@ -58,7 +58,6 @@ window.__ModuleLoader__.load({
     const PAUSE_MS = 120;
     const DEPTH_EASE = 143;
     const SLEEP_AFTER_MS = 60_000;
-    const YAWN_AFTER_MS = 45_000;
     const BREAK_AFTER_MS = 50 * 60_000;
     const BREAK_REPEAT_MS = 45 * 60_000;
     const BREAK_GRACE_MS = 3 * 60_000;
@@ -75,12 +74,6 @@ window.__ModuleLoader__.load({
         'break.suggest': 'take a break?',
         'aria.cloud': 'Pet: {status}',
         'thought.hmm': 'hmm…',
-        'thought.clouds': 'clouds…',
-        'thought.heart': '♡',
-        'thought.more': 'just a little more',
-        'thought.drink': 'could use a drink…',
-        'thought.dots': '...',
-        'thought.interesting': 'interesting',
       },
       zh: {
         'status.thinking': '思考中',
@@ -91,24 +84,10 @@ window.__ModuleLoader__.load({
         'break.suggest': '休息一下？',
         'aria.cloud': '宠物：{status}',
         'thought.hmm': '嗯…',
-        'thought.clouds': '云朵…',
-        'thought.heart': '♡',
-        'thought.more': '再一点点',
-        'thought.drink': '好想喝点东西…',
-        'thought.dots': '...',
-        'thought.interesting': '有意思',
       },
     };
 
-    const THOUGHTS = [
-      'thought.hmm',
-      'thought.clouds',
-      'thought.heart',
-      'thought.more',
-      'thought.drink',
-      'thought.dots',
-      'thought.interesting',
-    ];
+    const THOUGHTS = ['thought.hmm'];
 
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -232,6 +211,7 @@ window.__ModuleLoader__.load({
       const lastAgentRef = React.useRef(Date.now());
       const lastTouchRef = React.useRef(Date.now());
       const petHoverRef = React.useRef(false);
+      const clickUntilRef = React.useRef(0);
 
       const [uiSessionId, setUiSessionId] = React.useState(undefined);
       const [uiStatus, setUiStatus] = React.useState(null);
@@ -342,6 +322,9 @@ window.__ModuleLoader__.load({
           lastTime: 0,
           lastPointerTime: 0,
           lastMoveAt: 0,
+          downX: 0,
+          downY: 0,
+          moved: false,
           anim: null,
           pose: 'idle',
           poseStart: 0,
@@ -573,7 +556,7 @@ window.__ModuleLoader__.load({
         errorSeen: null,
         errorUntil: 0,
         highContext: false,
-        yawned: false,
+        wasRunning: false,
       });
 
       React.useEffect(() => {
@@ -618,6 +601,12 @@ window.__ModuleLoader__.load({
             meta.breakUntil = now + 9000;
           }
 
+          if (meta.wasRunning && !running) {
+            meta.wasRunning = false;
+            if (!dragging && !live.state?.stuck) playEmotion('joy');
+          }
+          if (running) meta.wasRunning = true;
+
           const quietFor = now - Math.max(lastAgentRef.current, lastTouchRef.current);
           const sleeping = !running && quietFor > SLEEP_AFTER_MS;
           const pose = running
@@ -642,31 +631,24 @@ window.__ModuleLoader__.load({
             }
           }
 
-          if (running || petHoverRef.current || now - lastTouchRef.current < 5000) {
-            meta.yawned = false;
-          }
-          if (!running && !sleeping && !meta.yawned && quietFor > YAWN_AFTER_MS) {
-            meta.yawned = true;
-            playEmotion('yawn');
-          }
+          const contextLine =
+            live.contextPercent !== null
+              ? {
+                  text: tr('context.percent', { percent: live.contextPercent }),
+                  tone: 'info',
+                }
+              : {
+                  text: live.sessionTitle ? String(live.sessionTitle).slice(0, 32) : '…',
+                  tone: 'info',
+                };
 
           let next = null;
           if (live.debug) {
             next = { text: live.debugText, tone: 'info' };
+          } else if (now < clickUntilRef.current) {
+            next = contextLine;
           } else if (live.hovered) {
-
-            next =
-              live.contextPercent !== null
-                ? {
-                    text: tr('context.percent', { percent: live.contextPercent }),
-                    tone: 'info',
-                  }
-                : {
-                    text: live.sessionTitle
-                      ? String(live.sessionTitle).slice(0, 32)
-                      : '…',
-                    tone: 'info',
-                  };
+            next = contextLine;
           } else if (waiting) {
             next = { text: tr('status.waiting'), tone: 'wait' };
           } else if (now < meta.errorUntil) {
@@ -790,11 +772,11 @@ window.__ModuleLoader__.load({
         };
 
         const wake = () => {
-          if (state.pose === 'sleepy') {
-            state.pose = 'idle';
-            state.poseStart = performance.now();
-            ensureLoop();
-          }
+          if (state.pose !== 'sleepy') return;
+          state.pose = 'idle';
+          state.poseStart = performance.now();
+          playEmotion('yawn');
+          ensureLoop();
         };
 
         const onMove = (event) => {
@@ -843,10 +825,17 @@ window.__ModuleLoader__.load({
         } catch {
 
         }
+        const wasSleeping = state.pose === 'sleepy';
         state.dragging = true;
         state.stuck = false;
         state.anim = null;
         state.pose = 'idle';
+        if (wasSleeping) {
+          state.anim = { config: EMOTIONS.yawn, start: performance.now() };
+        }
+        state.downX = event.clientX;
+        state.downY = event.clientY;
+        state.moved = false;
         lastTouchRef.current = Date.now();
         state.pointerId = event.pointerId;
         state.vx = 0;
@@ -870,6 +859,9 @@ window.__ModuleLoader__.load({
         const dt = Math.max(0.001, (now - state.lastPointerTime) / 1000);
         const rawVx = (event.clientX - state.lastX) / dt;
         const rawVy = (event.clientY - state.lastY) / dt;
+        if (Math.hypot(event.clientX - state.downX, event.clientY - state.downY) > 5) {
+          state.moved = true;
+        }
         lastTouchRef.current = Date.now();
 
         if (now - state.lastMoveAt > 100) {
@@ -924,6 +916,7 @@ window.__ModuleLoader__.load({
 
       const endDrag = (event) => {
         if (!state.dragging || (event && event.pointerId !== state.pointerId)) return;
+        if (!state.moved) clickUntilRef.current = Date.now() + 5000;
         state.dragging = false;
         state.pointerId = null;
         if (hitRef.current) {
@@ -981,10 +974,8 @@ window.__ModuleLoader__.load({
                 !state.anim
               ) {
                 const roll = Math.random();
-                if (roll < 0.6) playEmotion('blink');
-                else if (roll < 0.8) playEmotion('tail');
-                else if (roll < 0.93) playEmotion('joy');
-                else playEmotion('yawn');
+                if (roll < 0.75) playEmotion('blink');
+                else playEmotion('tail');
               }
               scheduleEmotion();
             },

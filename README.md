@@ -11,10 +11,10 @@ thought cloud with what the agent is doing.
 ## Install
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.2.3
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.0
 ```
 
-Replace `web` with your profile name (for example `desktop`). The `#v0.2.3`
+Replace `web` with your profile name (for example `desktop`). The `#v0.3.0`
 suffix pins the install to the tagged release instead of the moving `master`.
 Or install the current working copy with the plugin manager by pointing it at
 this directory.
@@ -26,8 +26,9 @@ this directory.
 - **Squash against the window edge.** Four sprite directions (`up`, `right`,
   `left`, `down`) with 8 hand-drawn frames each. The edge he touches stays put,
   and the frame is chosen by how far the pointer overshoots the wall.
-- **Emotions.** Blinking (4 frames), tail wag and joy (12 frames each), plus a
-  rare yawn play on their own while he is idle.
+- **Emotions.** While idle he only blinks (4 frames) or wags his tail
+  (12 frames). A completed turn plays `joy` once, and waking up from sleep
+  plays `yawn`.
 - **Agent poses.** While the agent works he switches to the `thinking` (20
   frames) or `working` (12 frames) animation instead of a text status.
 - **Sleep.** After a minute without agent activity and without the cursor
@@ -40,8 +41,9 @@ this directory.
     pause still counts as continuous);
   - `context N%` — context pressure above 80% (crossing 80% also plays a short
     `surprised` animation);
-  - random idle thoughts every couple of minutes.
-  Hover the cloud to see context pressure; click it to open the watched session.
+  - `hmm…` — the only idle thought, once every 70–160 s for 3.6 s.
+  Hover the cloud to see context pressure; a click on the pet shows the same
+  context for 5 seconds; clicking the cloud opens the watched session.
 - **Follows the DSH language.** English and Chinese dictionaries ship with the
   plugin and follow Settings → Language; anything else falls back to English.
 - **Cheap when idle.** Breathing runs in short 3.4 s sessions every 25–40 s and
