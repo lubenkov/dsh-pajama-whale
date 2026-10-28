@@ -1,6 +1,6 @@
 {
   "name": "dsh-pajama-whale",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A tiny person in a blue-whale onesie you can drag around the DSH window; he sticks to the window edges, pressed flat, and blinks now and then.",
   "type": "module",
   "license": "MIT",

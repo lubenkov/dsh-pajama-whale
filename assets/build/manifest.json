@@ -24,6 +24,31 @@
    "frames": 12,
    "fps": 14,
    "loop": true
+  },
+  "thinking": {
+   "frames": 20,
+   "fps": 12,
+   "loop": true
+  },
+  "working": {
+   "frames": 12,
+   "fps": 12,
+   "loop": true
+  },
+  "surprised": {
+   "frames": 8,
+   "fps": 14,
+   "loop": false
+  },
+  "yawn": {
+   "frames": 13,
+   "fps": 10,
+   "loop": false
+  },
+  "sleepy": {
+   "frames": 16,
+   "fps": 8,
+   "loop": true
   }
  },
  "neutral_bbox": [

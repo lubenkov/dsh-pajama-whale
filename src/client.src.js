@@ -11,6 +11,11 @@ window.__ModuleLoader__.load({
     const SHEET_EMO_BLINK = '__SHEET_EMO_BLINK__';
     const SHEET_EMO_TAIL_WAG = '__SHEET_EMO_TAIL_WAG__';
     const SHEET_EMO_JOY = '__SHEET_EMO_JOY__';
+    const SHEET_EMO_THINKING = '__SHEET_EMO_THINKING__';
+    const SHEET_EMO_WORKING = '__SHEET_EMO_WORKING__';
+    const SHEET_EMO_SURPRISED = '__SHEET_EMO_SURPRISED__';
+    const SHEET_EMO_YAWN = '__SHEET_EMO_YAWN__';
+    const SHEET_EMO_SLEEPY = '__SHEET_EMO_SLEEPY__';
 
     const SQUASH = {
       up: { key: 'up', sheet: SHEET_SQ_UP },
@@ -25,6 +30,11 @@ window.__ModuleLoader__.load({
       blink: { key: 'blink', sheet: SHEET_EMO_BLINK, frames: 4, fps: 16 },
       tail: { key: 'tail', sheet: SHEET_EMO_TAIL_WAG, frames: 12, fps: 14 },
       joy: { key: 'joy', sheet: SHEET_EMO_JOY, frames: 12, fps: 14 },
+      thinking: { key: 'thinking', sheet: SHEET_EMO_THINKING, frames: 20, fps: 12 },
+      working: { key: 'working', sheet: SHEET_EMO_WORKING, frames: 12, fps: 12 },
+      surprised: { key: 'surprised', sheet: SHEET_EMO_SURPRISED, frames: 8, fps: 14 },
+      yawn: { key: 'yawn', sheet: SHEET_EMO_YAWN, frames: 13, fps: 10 },
+      sleepy: { key: 'sleepy', sheet: SHEET_EMO_SLEEPY, frames: 16, fps: 8 },
     };
 
     const FRAME_W = 896;
@@ -47,8 +57,8 @@ window.__ModuleLoader__.load({
     const THROW_THRESHOLD = 120;
     const PAUSE_MS = 120;
     const DEPTH_EASE = 143;
-    const IDLE_MS = 8 * 60_000;
-    const NIGHT_IDLE_MS = 2 * 60_000;
+    const SLEEP_AFTER_MS = 60_000;
+    const YAWN_AFTER_MS = 45_000;
     const BREAK_AFTER_MS = 50 * 60_000;
     const BREAK_REPEAT_MS = 45 * 60_000;
     const BREAK_GRACE_MS = 3 * 60_000;
@@ -63,7 +73,6 @@ window.__ModuleLoader__.load({
         'status.waiting': '?',
         'context.percent': 'context {percent}%',
         'break.suggest': 'take a break?',
-        'sleep.zzz': 'z z z',
         'aria.cloud': 'Pet: {status}',
         'thought.hmm': 'hmm…',
         'thought.clouds': 'clouds…',
@@ -80,7 +89,6 @@ window.__ModuleLoader__.load({
         'status.waiting': '?',
         'context.percent': '上下文 {percent}%',
         'break.suggest': '休息一下？',
-        'sleep.zzz': 'z z z',
         'aria.cloud': '宠物：{status}',
         'thought.hmm': '嗯…',
         'thought.clouds': '云朵…',
@@ -221,6 +229,8 @@ window.__ModuleLoader__.load({
       const hitRef = React.useRef(null);
       const layerARef = React.useRef(null);
       const frameRef = React.useRef(0);
+      const lastAgentRef = React.useRef(Date.now());
+      const lastTouchRef = React.useRef(Date.now());
 
       const [uiSessionId, setUiSessionId] = React.useState(undefined);
       const [uiStatus, setUiStatus] = React.useState(null);
@@ -332,6 +342,8 @@ window.__ModuleLoader__.load({
           lastPointerTime: 0,
           lastMoveAt: 0,
           anim: null,
+          pose: 'idle',
+          poseStart: 0,
         };
       }
       const state = stateRef.current;
@@ -370,6 +382,15 @@ window.__ModuleLoader__.load({
             frames: SQUASH_FRAMES,
             position: state.depthSmooth * (SQUASH_FRAMES - 1),
           };
+        }
+        if (state.dragging) {
+          return { key: NEUTRAL.key, sheet: NEUTRAL.sheet, frames: SQUASH_FRAMES, position: 0 };
+        }
+        if (state.pose !== 'idle' && EMOTIONS[state.pose]) {
+          const config = EMOTIONS[state.pose];
+          const elapsed = ((now - state.poseStart) / 1000) * config.fps;
+          const position = ((elapsed % config.frames) + config.frames) % config.frames;
+          return { key: config.key, sheet: config.sheet, frames: config.frames, position };
         }
         return { key: NEUTRAL.key, sheet: NEUTRAL.sheet, frames: SQUASH_FRAMES, position: 0 };
       };
@@ -443,6 +464,7 @@ window.__ModuleLoader__.load({
         const busy =
           state.dragging ||
           state.anim !== null ||
+          state.pose !== 'idle' ||
           Math.abs(state.vx) + Math.abs(state.vy) > 0.5 ||
           Math.abs(state.depthSmooth - state.depth) > 0.001;
         if (busy) {
@@ -549,6 +571,8 @@ window.__ModuleLoader__.load({
         thoughtUntil: 0,
         errorSeen: null,
         errorUntil: 0,
+        highContext: false,
+        yawned: false,
       });
 
       React.useEffect(() => {
@@ -563,6 +587,7 @@ window.__ModuleLoader__.load({
           if (running || dragging) {
             meta.lastActive = now;
             meta.idleSince = 0;
+            if (running) lastAgentRef.current = now;
             if (!meta.busySince) meta.busySince = now;
           } else {
             if (!meta.idleSince) meta.idleSince = now;
@@ -590,10 +615,41 @@ window.__ModuleLoader__.load({
             meta.breakUntil = now + 9000;
           }
 
-          const hour = new Date().getHours();
-          const idleFor = now - meta.lastActive;
-          const sleeping =
-            idleFor > IDLE_MS || ((hour >= 23 || hour < 8) && idleFor > NIGHT_IDLE_MS);
+          const quietFor = now - Math.max(lastAgentRef.current, lastTouchRef.current);
+          const sleeping = !running && quietFor > SLEEP_AFTER_MS;
+          const pose = running
+            ? live.sessionInfo.toolActive
+              ? 'working'
+              : 'thinking'
+            : sleeping
+              ? 'asleep'
+              : 'idle';
+          if (live.state && live.state.pose !== pose) {
+            live.state.pose = pose;
+            live.state.poseStart = now;
+            ensureLoop();
+          }
+
+          if (live.contextPercent !== null) {
+            if (live.contextPercent >= 80 && !meta.highContext) {
+              meta.highContext = true;
+              if (!dragging && !live.state?.stuck) playEmotion('surprised');
+            } else if (live.contextPercent < 75) {
+              meta.highContext = false;
+            }
+          }
+
+          if (running || now - lastTouchRef.current < 5000) meta.yawned = false;
+          if (
+            !running &&
+            !sleeping &&
+            !meta.yawned &&
+            (now - lastAgentRef.current > YAWN_AFTER_MS ||
+              now - lastTouchRef.current > YAWN_AFTER_MS)
+          ) {
+            meta.yawned = true;
+            playEmotion('yawn');
+          }
 
           let next = null;
           if (live.debug) {
@@ -617,21 +673,13 @@ window.__ModuleLoader__.load({
           } else if (now < meta.errorUntil) {
             next = { text: tr('status.error'), tone: 'error' };
           } else if (now < meta.breakUntil) {
-
             next = { text: tr('break.suggest'), tone: 'info' };
-          } else if (running) {
-            next = {
-              text: tr(live.sessionInfo.toolActive ? 'status.working' : 'status.thinking'),
-              tone: 'work',
-            };
           } else if (live.contextPercent !== null && live.contextPercent >= 80) {
             next = {
               text: tr('context.percent', { percent: live.contextPercent }),
               tone: 'warn',
             };
-          } else if (sleeping) {
-            next = { text: tr('sleep.zzz'), tone: 'sleep' };
-          } else if (now < meta.thoughtUntil) {
+          } else if (!running && !sleeping && now < meta.thoughtUntil) {
             next = { text: tr(meta.thought), tone: 'thought' };
           }
 
@@ -731,8 +779,7 @@ window.__ModuleLoader__.load({
       };
 
       React.useEffect(() => {
-        const insideCloud = (event) => {
-          const node = cloudRef.current;
+        const insideRect = (event, node) => {
           if (!node) return false;
           const rect = node.getBoundingClientRect();
           return (
@@ -743,16 +790,28 @@ window.__ModuleLoader__.load({
           );
         };
 
+        const wake = () => {
+          if (state.pose === 'asleep') {
+            state.pose = 'idle';
+            state.poseStart = performance.now();
+            ensureLoop();
+          }
+        };
+
         const onMove = (event) => {
-          const inside = insideCloud(event);
-          if (inside !== hoverRef.current) {
-            hoverRef.current = inside;
-            setHovered(inside);
+          const insideCloud = insideRect(event, cloudRef.current);
+          if (insideCloud !== hoverRef.current) {
+            hoverRef.current = insideCloud;
+            setHovered(insideCloud);
+          }
+          if (insideCloud || insideRect(event, hitRef.current)) {
+            lastTouchRef.current = Date.now();
+            wake();
           }
         };
 
         const onDown = (event) => {
-          if (!insideCloud(event)) return;
+          if (!insideRect(event, cloudRef.current)) return;
           lastCloudOpenRef.current = performance.now();
           openSession();
         };
@@ -780,6 +839,8 @@ window.__ModuleLoader__.load({
         state.dragging = true;
         state.stuck = false;
         state.anim = null;
+        state.pose = 'idle';
+        lastTouchRef.current = Date.now();
         state.pointerId = event.pointerId;
         state.vx = 0;
         state.vy = 0;
@@ -802,6 +863,7 @@ window.__ModuleLoader__.load({
         const dt = Math.max(0.001, (now - state.lastPointerTime) / 1000);
         const rawVx = (event.clientX - state.lastX) / dt;
         const rawVy = (event.clientY - state.lastY) / dt;
+        lastTouchRef.current = Date.now();
 
         if (now - state.lastMoveAt > 100) {
           state.vx = rawVx;
@@ -898,20 +960,24 @@ window.__ModuleLoader__.load({
         }
 
         let emotionTimer = 0;
-        let count = 0;
         const scheduleEmotion = () => {
           emotionTimer = window.setTimeout(
             () => {
               const reduced =
                 typeof window.matchMedia === 'function' &&
                 window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-              if (!reduced && !state.dragging && !state.stuck) {
-                count += 1;
-                if (count % 6 === 0) {
-                  playEmotion(count % 12 === 0 ? 'joy' : 'tail');
-                } else {
-                  playEmotion('blink');
-                }
+              if (
+                !reduced &&
+                !state.dragging &&
+                !state.stuck &&
+                state.pose === 'idle' &&
+                !state.anim
+              ) {
+                const roll = Math.random();
+                if (roll < 0.6) playEmotion('blink');
+                else if (roll < 0.8) playEmotion('tail');
+                else if (roll < 0.93) playEmotion('joy');
+                else playEmotion('yawn');
               }
               scheduleEmotion();
             },

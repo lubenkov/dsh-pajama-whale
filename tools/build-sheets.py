@@ -17,6 +17,11 @@ EMOTIONS = {
     "blink": (4, 16, 1, False),
     "tail_wag": (12, 14, 1, True),
     "joy": (12, 14, 1, True),
+    "thinking": (20, 12, 1, True),
+    "working": (12, 12, 1, True),
+    "surprised": (8, 14, 1, False),
+    "yawn": (13, 10, 1, False),
+    "sleepy": (16, 8, 1, True),
 }
 
 

@@ -15,6 +15,11 @@ const SHEETS = {
   SHEET_EMO_BLINK: 'emo-blink.webp',
   SHEET_EMO_TAIL_WAG: 'emo-tail_wag.webp',
   SHEET_EMO_JOY: 'emo-joy.webp',
+  SHEET_EMO_THINKING: 'emo-thinking.webp',
+  SHEET_EMO_WORKING: 'emo-working.webp',
+  SHEET_EMO_SURPRISED: 'emo-surprised.webp',
+  SHEET_EMO_YAWN: 'emo-yawn.webp',
+  SHEET_EMO_SLEEPY: 'emo-sleepy.webp',
 };
 
 const sourcePath = join(root, 'src', 'client.src.js');

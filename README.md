@@ -11,10 +11,10 @@ thought cloud with what the agent is doing.
 ## Install
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.1.0
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.2.0
 ```
 
-Replace `web` with your profile name (for example `desktop`). The `#v0.1.0`
+Replace `web` with your profile name (for example `desktop`). The `#v0.2.0`
 suffix pins the install to the tagged release instead of the moving `master`.
 Or install the current working copy with the plugin manager by pointing it at
 this directory.
@@ -26,17 +26,20 @@ this directory.
 - **Squash against the window edge.** Four sprite directions (`up`, `right`,
   `left`, `down`) with 8 hand-drawn frames each. The edge he touches stays put,
   and the frame is chosen by how far the pointer overshoots the wall.
-- **Emotions.** Blinking (4 frames), tail wag and joy (12 frames each) play on
-  their own while he is idle.
+- **Emotions.** Blinking (4 frames), tail wag and joy (12 frames each), plus a
+  rare yawn play on their own while he is idle.
+- **Agent poses.** While the agent works he switches to the `thinking` (20
+  frames) or `working` (12 frames) animation instead of a text status.
+- **Sleep.** After a minute without agent activity and without the cursor
+  touching him, he falls asleep with the looping `sleepy` animation and wakes on
+  any interaction or a new turn.
 - **Thought cloud.** Above his head, in priority order:
   - `?` — the agent waits for approval or an answer;
   - `! error` — the last turn failed;
   - `take a break?` — after 50 minutes of continuous work (up to 3 minutes of
     pause still counts as continuous);
-  - `thinking` / `working` — the current turn is running (with or without a tool
-    call so far);
-  - `context N%` — context pressure above 80%;
-  - `z z z` — idle for 8 minutes (2 at night);
+  - `context N%` — context pressure above 80% (crossing 80% also plays a short
+    `surprised` animation);
   - random idle thoughts every couple of minutes.
   Hover the cloud to see context pressure; click it to open the watched session.
 - **Follows the DSH language.** English and Chinese dictionaries ship with the
