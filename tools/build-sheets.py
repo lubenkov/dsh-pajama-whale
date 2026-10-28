@@ -1,17 +1,4 @@
 #!/usr/bin/env python3
-"""Build the WebP sprite sheets used by the browser client.
-
-The hand-cut PNG frames live in ``assets/sprites/`` (a generated pack that is
-not committed because of its size). This script packs each animation into a
-horizontal WebP strip in ``assets/build/``; ``tools/build-client.mjs`` then
-inlines those strips into ``client.js`` as data URIs.
-
-    python tools/build-sheets.py
-    node tools/build-client.mjs
-
-Requires Pillow.
-"""
-
 from __future__ import annotations
 
 import json
@@ -26,7 +13,6 @@ OUT = ROOT / "assets" / "build"
 CELL_W, CELL_H = 288, 361
 QUALITY = 80
 
-# name -> (source frame count, playback fps, frame stride, loop)
 EMOTIONS = {
     "blink": (4, 16, 1, False),
     "tail_wag": (12, 14, 1, True),
@@ -46,9 +32,7 @@ def sheet(paths: list[Path], name: str) -> int:
 
 def main() -> None:
     if not SRC.is_dir():
-        raise SystemExit(
-            f"missing sprite pack at {SRC}; it is not committed, ask the author for it"
-        )
+        raise SystemExit(f"missing sprite pack at {SRC}")
     OUT.mkdir(parents=True, exist_ok=True)
     total = 0
 

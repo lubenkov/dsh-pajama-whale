@@ -1,13 +1,5 @@
 #!/usr/bin/env node
-/**
- * Inlines the WebP sprite sheets into client.js as data URIs.
- *
- * Source sheets live in assets/build/ (produced from assets/sprites/ by
- * tools/build-sheets.py). The client half is a single browser module with no
- * filesystem access, so the artwork travels with the code.
- *
- *   node tools/build-client.mjs
- */
+
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

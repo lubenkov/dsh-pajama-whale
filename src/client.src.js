@@ -1,31 +1,8 @@
-/**
- * Client half of dsh-pajama-whale.
- *
- * A small person in a blue-whale onesie lives in the frame-wide overlay layer.
- * The artwork is a sprite pack: four squash directions (8 frames each) and a
- * few emotion animations. Everything is inlined as WebP data URIs by
- * tools/build-client.mjs, so the browser module needs no file access.
- *
- * Behaviour:
- *   - drag him anywhere with mouse or touch;
- *   - no gravity, no bounce: throw him and he flies straight until he hits the
- *     window edge, then sticks there in the matching squash frame;
- *   - pressing uses the pack's own frames: the pointer overshoot past the wall
- *     selects frame 0..7 while the wall-side edge stays put;
- *   - idle: he blinks, wags his tail or laughs now and then;
- *   - a thought cloud reports agent status, pending interactions, errors and
- *     context pressure, and sometimes shows idle thoughts, sleep or a break
- *     reminder.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-pajama-whale',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
-
-    /* ------------------------------------------------------------------ */
-    /* Sprite sheets (inlined by tools/build-client.mjs)                   */
-    /* ------------------------------------------------------------------ */
 
     const SHEET_SQ_UP = '__SHEET_SQ_UP__';
     const SHEET_SQ_RIGHT = '__SHEET_SQ_RIGHT__';
@@ -50,8 +27,6 @@ window.__ModuleLoader__.load({
       joy: { key: 'joy', sheet: SHEET_EMO_JOY, frames: 12, fps: 14 },
     };
 
-    // Source frame geometry: the character bbox inside each 896x1123 frame
-    // never moves for the neutral pose, so the wall contact edge is exact.
     const FRAME_W = 896;
     const FRAME_H = 1123;
     const BBOX_L = 69;
@@ -71,7 +46,7 @@ window.__ModuleLoader__.load({
     const PULL_PX = 110;
     const THROW_THRESHOLD = 120;
     const PAUSE_MS = 120;
-    const DEPTH_EASE = 143; // ~7 ms
+    const DEPTH_EASE = 143;
     const IDLE_MS = 8 * 60_000;
     const NIGHT_IDLE_MS = 2 * 60_000;
     const BREAK_AFTER_MS = 50 * 60_000;
@@ -176,7 +151,7 @@ window.__ModuleLoader__.load({
           }),
         );
       } catch {
-        /* storage may be unavailable; the pet still works without persistence */
+
       }
     };
 
@@ -197,9 +172,6 @@ window.__ModuleLoader__.load({
     function Pet(props) {
       const { host, localeFace, uiSession, useSessions, useSessionStatus } = props;
 
-      // The locale service is read directly instead of through the slot's
-      // `locale` option: that keeps the pet alive even if dictionary
-      // registration lags behind slot registration.
       const [, bumpLocale] = React.useReducer((count) => count + 1, 0);
       React.useEffect(() => {
         if (!localeFace || typeof localeFace.subscribe !== 'function') return undefined;
@@ -218,7 +190,6 @@ window.__ModuleLoader__.load({
                 : template;
             };
 
-      // Opt-in diagnostics: localStorage['pajama-whale:debug'] = '1'.
       const [debug] = React.useState(() => {
         try {
           return window.localStorage.getItem('pajama-whale:debug') === '1';
@@ -232,10 +203,6 @@ window.__ModuleLoader__.load({
       const layerARef = React.useRef(null);
       const frameRef = React.useRef(0);
 
-      /* ---- session data ------------------------------------------------ */
-
-      // Slot standard props are not guaranteed to reach a root-scope entry, so
-      // the uiSession service is read directly as a second source of truth.
       const [uiSessionId, setUiSessionId] = React.useState(undefined);
       const [uiStatus, setUiStatus] = React.useState(null);
 
@@ -289,8 +256,6 @@ window.__ModuleLoader__.load({
       );
       const [breathing, setBreathing] = React.useState(false);
 
-      // Context pressure can also arrive through the session list projections;
-      // the binding face is not the only source, so merge both.
       const listPressure =
         sessions?.projectionsBySession?.[sessionId]?.values?.contextPressure ??
         sessions?.byId?.[sessionId]?.projectionValues?.contextPressure;
@@ -356,8 +321,6 @@ window.__ModuleLoader__.load({
         maxX: Math.max(0, window.innerWidth - CHAR_W),
         maxY: Math.max(0, window.innerHeight - CHAR_H),
       });
-
-      /* ---- sprite painting -------------------------------------------- */
 
       const setLayer = (layer, key, sheet, frames, frame, opacity) => {
         if (!layer) return;
@@ -482,12 +445,10 @@ window.__ModuleLoader__.load({
         ensureLoop();
       };
 
-      /* ---- session info: context, error, tool activity ----------------- */
-
       const retainedByMain = sessions?.byId?.[sessionId]?.retainedBy?.mainView ?? 0;
 
       React.useEffect(() => {
-        // A previous session's context/error must never leak into the next one.
+
         setSessionInfo({ contextPercent: null, error: null, toolActive: false, title: null });
         if (!sessionId || !host || typeof host.get !== 'function') return undefined;
         const service = host.get('sessions');
@@ -499,7 +460,7 @@ window.__ModuleLoader__.load({
           if (cancelled) return;
           const binding = service?.binding?.(sessionId);
           if (!binding) {
-            // The generation may not be retained yet right after a switch.
+
             retry = window.setTimeout(attach, 300);
             return;
           }
@@ -554,8 +515,6 @@ window.__ModuleLoader__.load({
           for (const dispose of disposers) if (typeof dispose === 'function') dispose();
         };
       }, [sessionId, host, retainedByMain]);
-
-      /* ---- cloud content ---------------------------------------------- */
 
       const metaRef = React.useRef({
         lastActive: Date.now(),
@@ -615,8 +574,7 @@ window.__ModuleLoader__.load({
           if (live.debug) {
             next = { text: live.debugText, tone: 'info' };
           } else if (live.hovered) {
-            // Hover must always produce a visible answer: the percentage when
-            // it is known, otherwise the watched session title.
+
             next =
               live.contextPercent !== null
                 ? {
@@ -634,8 +592,7 @@ window.__ModuleLoader__.load({
           } else if (now < meta.errorUntil) {
             next = { text: tr('status.error'), tone: 'error' };
           } else if (now < meta.breakUntil) {
-            // Break advice must win over the running status, otherwise it only
-            // appears after the work is already over.
+
             next = { text: tr('break.suggest'), tone: 'info' };
           } else if (running) {
             next = {
@@ -704,8 +661,6 @@ window.__ModuleLoader__.load({
           window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (reduced) return undefined;
 
-        // Breathing runs in short sessions instead of forever: that keeps the
-        // compositor asleep most of the time and drops idle GPU usage to zero.
         let cancelled = false;
         let startTimer = 0;
         let endTimer = 0;
@@ -737,9 +692,6 @@ window.__ModuleLoader__.load({
         workspace?.openSession?.(sessionId);
       };
 
-      // Hover and click are tracked on the window instead of the button: other
-      // overlay occupants can sit above us, and hit testing would then never
-      // reach the cloud even though it is visible.
       React.useEffect(() => {
         const insideCloud = (event) => {
           const node = cloudRef.current;
@@ -773,10 +725,8 @@ window.__ModuleLoader__.load({
           window.removeEventListener('pointermove', onMove, true);
           window.removeEventListener('pointerdown', onDown, true);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [sessionId]);
 
-      /* ---- pointer handling ------------------------------------------- */
+      }, [sessionId]);
 
       const onPointerDown = (event) => {
         if (event.button !== undefined && event.button !== 0) return;
@@ -809,8 +759,7 @@ window.__ModuleLoader__.load({
         const dt = Math.max(0.001, (now - state.lastTime) / 1000);
         const rawVx = (event.clientX - state.lastX) / dt;
         const rawVy = (event.clientY - state.lastY) / dt;
-        // A pause longer than 100 ms breaks the velocity chain, so a slow
-        // reposition followed by a wait does not launch the pet.
+
         if (now - state.lastMoveAt > 100) {
           state.vx = rawVx;
           state.vy = rawVy;
@@ -892,8 +841,6 @@ window.__ModuleLoader__.load({
         ensureLoop();
       };
 
-      /* ---- lifecycle --------------------------------------------------- */
-
       React.useEffect(() => {
         for (const item of [...Object.values(SQUASH), ...Object.values(EMOTIONS)]) {
           const img = new Image();
@@ -926,7 +873,7 @@ window.__ModuleLoader__.load({
         const onResize = () => {
           const { maxX, maxY } = bounds();
           if (state.stuck && state.side) {
-            // A pet stuck to a wall must follow that wall when the window moves.
+
             if (state.side === 'left') state.x = 0;
             else if (state.side === 'right') state.x = maxX;
             else if (state.side === 'up') state.y = 0;
@@ -944,7 +891,7 @@ window.__ModuleLoader__.load({
           if (frameRef.current) cancelAnimationFrame(frameRef.current);
           frameRef.current = 0;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
       }, []);
 
       const layerStyle = {
@@ -979,8 +926,7 @@ window.__ModuleLoader__.load({
             top: 0,
             width: FRAME_CSS_W,
             height: FRAME_CSS_H,
-            // The frame is transparent around the character: only the hit
-            // box below opts into pointer events, so clicks pass through.
+
             pointerEvents: 'none',
             touchAction: 'none',
             userSelect: 'none',
@@ -1074,13 +1020,11 @@ window.__ModuleLoader__.load({
           localeFace = ctx.locale;
         }
 
-        // Registering twice (a reloaded module, another copy of the pet) must
-        // never take the whole plugin down; the existing dictionaries are fine.
         try {
           const disposeLocale = localeFace?.register?.(LOCALE_NS, LOCALE_DICT);
           if (typeof disposeLocale === 'function') ctx.effect(() => disposeLocale);
         } catch {
-          /* namespace already registered */
+
         }
 
         let uiSession;
