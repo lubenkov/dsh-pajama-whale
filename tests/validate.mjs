@@ -18,6 +18,35 @@ for (const file of ['index.js', 'client.js', 'cordis.patch.yml', 'LICENSE', 'REA
   if (!exists(file)) fail(`missing ${file}`);
 }
 
+if (pkg.icon !== './assets/icon.png') fail('package.json: unexpected icon path');
+if (!pkg.exports?.['./icon']) fail('package.json: missing ./icon export');
+if (!pkg.exports?.['./locale/*.json']) fail('package.json: missing locale export');
+
+const iconPath = join(root, 'assets/icon.png');
+if (!existsSync(iconPath)) {
+  fail('missing assets/icon.png');
+} else {
+  const icon = readFileSync(iconPath);
+  if (icon.length > 256 * 1024) fail(`icon is ${icon.length} bytes, above the 256 KiB limit`);
+  if (icon.toString('latin1', 1, 4) !== 'PNG') fail('icon is not a PNG');
+  const width = icon.readUInt32BE(16);
+  const height = icon.readUInt32BE(20);
+  if (width < 64 || height < 64 || width > 1024 || height > 1024) {
+    fail(`icon dimensions ${width}x${height} are outside 64..1024`);
+  }
+}
+
+for (const locale of ['en', 'zh']) {
+  const path = `locale/${locale}.json`;
+  if (!exists(path)) {
+    fail(`missing ${path}`);
+    continue;
+  }
+  const data = JSON.parse(read(path));
+  if (!data.meta?.title) fail(`${path}: missing meta.title`);
+  if (!data.meta?.description) fail(`${path}: missing meta.description`);
+}
+
 const manifest = JSON.parse(read('assets/build/manifest.json'));
 const expectedSquash = ['up', 'right', 'left', 'down'];
 const expectedEmotions = [
