@@ -14,6 +14,7 @@ if (!/^\d+\.\d+\.\d+/.test(pkg.version)) fail('package.json: bad version');
 if (!pkg.dsh?.bundle?.patch) fail('package.json: missing dsh.bundle.patch');
 if (!pkg.engines?.dsh) fail('package.json: missing engines.dsh');
 if (!/0\.2\.1/.test(pkg.engines?.dsh ?? '')) fail('package.json: unexpected engines.dsh range');
+if (!/<0\.3\.0-0/.test(pkg.engines?.dsh ?? '')) fail('package.json: range must exclude 0.3.0 prereleases');
 for (const file of ['index.js', 'client.js', 'cordis.patch.yml', 'LICENSE', 'README.md']) {
   if (!exists(file)) fail(`missing ${file}`);
 }
@@ -22,8 +23,7 @@ if (pkg.icon !== './assets/icon.png') fail('package.json: unexpected icon path')
 if (!pkg.exports?.['./icon']) fail('package.json: missing ./icon export');
 if (!pkg.exports?.['./locale/*.json']) fail('package.json: missing locale export');
 
-const iconPath = join(root, 'assets/icon.png');
-if (!existsSync(iconPath)) {
+const iconPath = join(root, 'assets/icon.png');if (!existsSync(iconPath)) {
   fail('missing assets/icon.png');
 } else {
   const icon = readFileSync(iconPath);
@@ -36,8 +36,16 @@ if (!existsSync(iconPath)) {
   }
 }
 
-for (const locale of ['en', 'zh']) {
-  const path = `locale/${locale}.json`;
+if (!pkg.files?.includes('docs/preview.png')) {
+  fail('package.json: docs/preview.png is not shipped');
+}
+if (!exists('docs/preview.png')) {
+  fail('missing docs/preview.png');
+} else if (statSync(join(root, 'docs/preview.png')).size < 1000) {
+  fail('docs/preview.png is empty');
+}
+
+for (const locale of ['en', 'zh']) {  const path = `locale/${locale}.json`;
   if (!exists(path)) {
     fail(`missing ${path}`);
     continue;

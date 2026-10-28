@@ -9,11 +9,11 @@
 
 [![CI](https://github.com/lubenkov/dsh-pajama-whale/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/lubenkov/dsh-pajama-whale/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
-[![DSH](https://img.shields.io/badge/DSH-%E2%89%A50.2.1--rc.2%20%3C0.3.0-4D6BFE)](COMPATIBILITY.md)
+[![DSH](https://img.shields.io/badge/DSH-%E2%89%A50.2.1--rc.2%20%3C0.3.0--0-4D6BFE)](COMPATIBILITY.md)
 
 [English](README.md) · [中文](README.zh.md)
 
-<img src="docs/preview.png" width="620" alt="穿着鲸鱼连体衣的宠物，气泡里写着“working”">
+<img src="docs/preview.png" width="620" alt="穿着鲸鱼连体衣的宠物正在用笔记本电脑">
 
 </div>
 
@@ -24,29 +24,39 @@
 当长回合运行时，可以和他玩。工具开始时，他会掏出笔记本电脑；需要你时，他会冒出思考气泡；
 当上下文快用完、回合失败，或者你已经连续工作五十分钟时，他会开口提醒。
 
-无需配置。没有网络请求。整个东西只占用一个 overlay 插槽。
+无需配置。自身不发起网络请求。整个东西只占用一个 overlay 插槽。
 
 ## 安装
 
+Web（已在 DSH `0.2.1-rc.2` 上验证）：
+
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.2
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.3
 ```
 
-把 `web` 换成你启动时使用的 profile（`desktop` 等），然后重启 harness——
-第一次他会落在右下角。`#v0.3.2` 后缀把安装固定到已打标签的版本，而不是不断移动的
-`master`；去掉它则跟随分支。要移除他：
+Desktop 是保留 profile：npm 版 `dsh` CLI 拒绝管理它。请使用应用菜单
+**Manage dsh Command…** 安装的命令，或应用内的 Plugin Manager 页面：
 
 ```sh
-dsh plugin --profile web remove dsh-pajama-whale
+dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.3
+```
+
+更改插件前先退出应用，之后重新打开。把 `web` 换成你启动的另一个 profile。
+`#v0.3.3` 后缀固定到已打标签的版本；不带后缀时，pnpm 只解析一次当前 `master`
+并把该提交写入 lockfile，要跟进新提交需要重新安装或更新。要移除他：
+
+```sh
+dsh plugin --profile <profile> remove dsh-pajama-whale
 ```
 
 安装时没有构建步骤：美术资源已内联进 `client.js`，所以只需要 `dsh plugin add`——
 没有 postinstall 钩子，也没有运行时下载。它是一个纯 UI bundle（没有依赖，
 除了它读取的那些之外不使用任何宿主服务）。
 
-**声明兼容 DSH `>=0.2.1-rc.2 <0.3.0`**，写在 `engines.dsh` 中。插件市场用这个范围
-来标注兼容性；DSH 本身不会阻止更新的宿主，但状态集成可能会降级——确切的 API 面和
-优雅降级见 [COMPATIBILITY.md](COMPATIBILITY.md)。
+**声明兼容 DSH `>=0.2.1-rc.2 <0.3.0-0`**，写在 `engines.dsh` 中。DSH 会在安装和
+启动 profile 时强制执行；超出范围会拒绝该 bundle，直到为确切的版本对授予豁免。
+列入目录后，插件市场会用同一范围标注兼容性。API 面、豁免命令和优雅降级见
+[COMPATIBILITY.md](COMPATIBILITY.md)。
 
 ## 和他一起玩
 
@@ -62,7 +72,7 @@ dsh plugin --profile web remove dsh-pajama-whale
 
 | 会话在做什么 | 他会做什么 |
 |---|---|
-| 工具运行中 | 切换到 `working` 姿势——掏出笔记本电脑，12 帧 |
+| 本回合中已运行过工具 | 切换到 `working` 姿势——掏出笔记本电脑，12 帧 |
 | 回合运行中，没有工具活动 | `thinking`，20 帧 |
 | 回合结束 | 一次 `joy` 爆发 |
 | 等待你的批准或回答 | 气泡显示 `?` |
@@ -72,7 +82,8 @@ dsh plugin --profile web remove dsh-pajama-whale
 | 安静一分钟 | 以循环的 16 帧 `sleepy` 睡着；当你用光标叫醒他时打哈欠（13 帧）——新的回合会安静地叫醒他 |
 
 空闲时他只会眨眼（75 %）或摇尾巴（25 %），每 1.9–4.5 秒一次，外加罕见的
-`hmm…` 想法。一共是 12 张精灵图里的 129 帧。
+`hmm…` 想法。一共是 12 张精灵图里的 129 帧。当你拖动他或他贴在墙上时，
+姿势和一次性情绪会暂停：压扁帧优先。
 
 ### 一个气泡，严格优先级
 
@@ -83,11 +94,11 @@ dsh plugin --profile web remove dsh-pajama-whale
 ## 省电又安静
 
 - **无需构建，无需下载。** 全部 12 张图（2.3 MB WebP、129 帧）都以 data URI
-  内联进单个 3.1 MB 的 `client.js`。运行时零网络请求。
+  内联进单个 3.1 MB 的 `client.js`。插件自身不发起任何外部请求。
 - **空闲时很省。** 当宠物空闲且没有姿势在播放时，`requestAnimationFrame` 循环会停止；
-  姿势循环只以自己的 8–12 fps 重绘。呼吸是每 25–40 秒一次的约 3.4 秒 CSS 动画。
-  标签页隐藏时一切暂停；在 `prefers-reduced-motion` 下，呼吸和随机情绪会被禁用
-  （姿势动画仍会播放）。
+  精灵帧按自己的 8–12 fps 前进。呼吸是每 25–40 秒一次的约 3.4 秒 CSS 动画。
+  标签页隐藏时循环和呼吸暂停；状态计时器和空闲想法计时器会被浏览器降频，但不会取消。
+  在 `prefers-reduced-motion` 下，呼吸和随机情绪会被禁用（姿势动画仍会播放）。
 - **从不挡路。** 他只挂载到 `shell.overlay`，在他身体和气泡之外，
   overlay 是 `pointer-events: none`。
 - **记住自己的位置。** 位置、贴住的墙和压扁深度保存在 `localStorage`，
@@ -97,13 +108,14 @@ dsh plugin --profile web remove dsh-pajama-whale
 
 英语和中文文案通过 `ctx.locale` 跟随“设置 → 语言”（其他语言回退到英语）。
 插件只读取会话状态、上下文压力、会话标题和最近的工具活动来选择姿势。
-它不向任何地方发送数据，没有遥测，除了宠物的坐标外不在你的机器上存储任何东西。
+它不向任何地方发送数据，没有遥测，只在你的机器上的 `localStorage` 中保存宠物的位置、
+贴住的墙、压扁深度和粘贴标志。
 
 ## 如果他没有出现
 
 1. 确认你安装到的 profile 就是你启动的那个。
-2. 检查 DSH 版本是否在声明范围内。更新的宿主不会被阻止：宠物仍会渲染和拖动，
-   但某些状态通道可能缺失。
+2. 检查 DSH 版本是否在声明范围内。超出范围时，安装或启动 profile 会拒绝该 bundle；
+   只有在接受风险后才授予确切版本豁免（见 [COMPATIBILITY.md](COMPATIBILITY.md)）。
 3. 设置 `localStorage['pajama-whale:debug'] = '1'` 并重新加载：气泡会打印实时通道
    （会话 id、插槽钩子、运行状态）。缺失的通道列在
    [COMPATIBILITY.md](COMPATIBILITY.md#degradation) 中——即使没有它们，

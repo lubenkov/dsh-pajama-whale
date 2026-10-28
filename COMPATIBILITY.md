@@ -1,6 +1,11 @@
 # Compatibility
 
-Declared range: `>=0.2.1-rc.2 <0.3.0` (`engines.dsh` in `package.json`).
+Declared range: `>=0.2.1-rc.2 <0.3.0-0` (`engines.dsh` in `package.json`).
+
+DSH enforces this range at installation and at profile startup. A version
+outside it is refused until you grant an exact-version exemption for that
+plugin version and that DSH runtime. Prereleases participate in range
+matching, so `<0.3.0-0` is used to exclude every `0.3.0` prerelease as well.
 
 ## Verified against
 
@@ -9,9 +14,23 @@ Declared range: `>=0.2.1-rc.2 <0.3.0` (`engines.dsh` in `package.json`).
 | `0.2.1-rc.2` | `@deepseek-ai/dsh` from npm, install and behaviour |
 | `0.2.1-rc.3` | DeepSeek Harness desktop runtime, install and behaviour |
 
-DSH does not read `engines.dsh` from a plugin's `package.json`; the field is
-declarative. The plugin market index carries the same range per version and
-shows compatibility from it.
+## If DSH refuses the range
+
+Installation reports `incompatible-version` with the unmet `engines.dsh`
+requirement. Grant an exemption only after accepting the risk, with the exact
+plugin and runtime versions:
+
+```sh
+dsh plugin --profile <profile> allow-version \
+  dsh-pajama-whale@<version> \
+  --dsh-version <dsh-version> \
+  --accept-risk
+```
+
+The grant is stored in the profile's `compatibility.json`; it covers only that
+exact pair and is not inherited by plugin or DSH upgrades. Revoke it with
+`revoke-version`. In the Web UI the same operation is available through the
+plugin manager's version-exemption actions.
 
 ## APIs used
 
@@ -31,15 +50,17 @@ shows compatibility from it.
 - No locale service: English strings.
 - No `uiWorkspace`: clicking the cloud does nothing.
 - No slot standard props: the pet uses `uiSession` and `sessions.binding`.
-- Any thrown integration error is contained; the pet never blocks the host UI.
+- Service lookups and snapshot reads are wrapped: if `host.get`, `binding`,
+  `getSnapshot`, a projection or a subscription throws, that channel is skipped
+  and the pet stays a decoration. The host UI is never blocked by the pet.
 
 To see which channels are live, set
 `localStorage['pajama-whale:debug'] = '1'` and reload. The cloud then shows the
 detected session id, the `uiSession` id, which slot hooks are present, whether
-the session is running, and whether `ctx.get` works.
+the session is running, and whether `ctx.get` is callable.
 
 ## Updating
 
-When a new DSH release changes a client API: update the range here and in the
-market index, verify the debug line still shows live channels, and add the
-version to the table above.
+When a new DSH release changes a client API: update the range in
+`package.json` and in the market index, verify the debug line still shows live
+channels, and add the version to the table above.

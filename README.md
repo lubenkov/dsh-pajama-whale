@@ -9,11 +9,11 @@ and tells you what the agent is doing while you wait.
 
 [![CI](https://github.com/lubenkov/dsh-pajama-whale/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/lubenkov/dsh-pajama-whale/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
-[![DSH](https://img.shields.io/badge/DSH-%E2%89%A50.2.1--rc.2%20%3C0.3.0-4D6BFE)](COMPATIBILITY.md)
+[![DSH](https://img.shields.io/badge/DSH-%E2%89%A50.2.1--rc.2%20%3C0.3.0--0-4D6BFE)](COMPATIBILITY.md)
 
 [English](README.md) · [中文](README.zh.md)
 
-<img src="docs/preview.png" width="620" alt="The pet in his whale onesie with a thought cloud reading “working”">
+<img src="docs/preview.png" width="620" alt="The pet at his laptop in a whale onesie">
 
 </div>
 
@@ -27,21 +27,32 @@ pops a thought cloud when you are needed, and speaks up when the context is
 running out, when a turn failed, or when you have been at it for fifty minutes
 straight.
 
-No configuration. No network calls. The whole thing is one overlay slot.
+No configuration. No network calls of its own. The whole thing is one overlay
+slot.
 
 ## Install
 
+Web (verified on DSH `0.2.1-rc.2`):
+
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.2
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.3
 ```
 
-Swap `web` for the profile you boot (`desktop`, …), then restart the
-harness — he lands in the bottom-right corner the first time. The `#v0.3.2`
-suffix pins the tagged release instead of the moving `master`; drop it to
-follow the branch. To remove him:
+Desktop is a reserved profile: the npm `dsh` CLI refuses to manage it. Use the
+command installed from the app menu **Manage dsh Command…**, or the Plugin
+Manager page inside the app:
 
 ```sh
-dsh plugin --profile web remove dsh-pajama-whale
+dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.3
+```
+
+Quit the app before changing plugins and reopen it afterwards. Swap `web` for
+another profile you boot. The `#v0.3.3` suffix pins the tagged release; without
+it, pnpm resolves the current `master` once and records that commit in the
+lockfile, so moving to newer commits needs a reinstall or update. To remove him:
+
+```sh
+dsh plugin --profile <profile> remove dsh-pajama-whale
 ```
 
 No build step at install time: the artwork ships inlined in `client.js`, so
@@ -49,10 +60,12 @@ No build step at install time: the artwork ships inlined in `client.js`, so
 It is a pure UI bundle (no dependencies, no host services beyond the ones it
 reads through).
 
-**Declared for DSH `>=0.2.1-rc.2 <0.3.0`** in `engines.dsh`. The plugin market
-uses that range to label compatibility; DSH itself does not block a newer host,
-but the status integration may degrade — see [COMPATIBILITY.md](COMPATIBILITY.md)
-for the exact API surface and what degrades gracefully.
+**Declared for DSH `>=0.2.1-rc.2 <0.3.0-0`** in `engines.dsh`. DSH enforces it
+at installation and profile startup; outside the range it refuses the bundle
+until an exact-version exemption is granted. When listed, the plugin market
+reads the same range to label compatibility. See
+[COMPATIBILITY.md](COMPATIBILITY.md) for the API surface, the exemption
+command, and what degrades gracefully.
 
 ## Play with him
 
@@ -68,7 +81,7 @@ for the exact API surface and what degrades gracefully.
 
 | What the session does | What he does |
 |---|---|
-| Tools running | Switches to the `working` pose — laptop out, 12 frames |
+| A tool has run in this turn | Switches to the `working` pose — laptop out, 12 frames |
 | Turn running, no tool activity | `thinking`, 20 frames |
 | Turn finishes | One `joy` burst |
 | Waiting for your approval or an answer | Cloud shows `?` |
@@ -78,7 +91,9 @@ for the exact API surface and what degrades gracefully.
 | A minute of quiet | Falls asleep on a looping 16-frame `sleepy`; a yawn (13 frames) when you wake him with the cursor — a new turn wakes him silently |
 
 While idle he only blinks (75 %) or wags his tail (25 %), every 1.9–4.5 s, plus
-a rare `hmm…` thought. That is 129 frames across 12 sprite sheets.
+a rare `hmm…` thought. That is 129 frames across 12 sprite sheets. While you
+drag him or while he is stuck to a wall, poses and one-shot emotions pause: the
+squash frame wins.
 
 ### One cloud, strict priority
 
@@ -89,13 +104,15 @@ clicking always wins, so the pet never hides the context reading from you.
 ## Cheap and quiet
 
 - **Nothing to build, nothing to fetch.** All 12 sheets (2.3 MB of WebP,
-  129 frames) are inlined as data URIs into a single 3.1 MB `client.js`. Zero
-  network requests at runtime.
+  129 frames) are inlined as data URIs into a single 3.1 MB `client.js`. The
+  plugin makes no outbound requests of its own.
 - **Cheap when idle.** The `requestAnimationFrame` loop stops as soon as the
-  pet is idle and no pose is playing; pose loops repaint only at their own
-  8–12 fps. Breathing is a ~3.4 s CSS animation every 25–40 s. Everything
-  pauses while the tab is hidden, and breathing plus random emotions are
-  disabled under `prefers-reduced-motion` (pose animations still play).
+  pet is idle and no pose is playing; sprite frames advance at their own
+  8–12 fps. Breathing is a ~3.4 s CSS animation every 25–40 s. The loop and
+  breathing pause while the tab is hidden; the status ticker and idle-thought
+  timer are throttled by the browser but not cancelled. Breathing and random
+  emotions are disabled under `prefers-reduced-motion` (pose animations still
+  play).
 - **Never in your way.** He mounts only into `shell.overlay`, and the overlay
   is `pointer-events: none` outside his body and cloud.
 - **Remembers his place.** Position, wall and squash depth live in
@@ -106,15 +123,15 @@ clicking always wins, so the pet never hides the context reading from you.
 English and Chinese strings follow Settings → Language through `ctx.locale`
 (anything else falls back to English). The plugin reads only session status,
 context pressure, session title and recent tool activity to choose a pose. It
-sends nothing anywhere, has no telemetry, and stores nothing but the pet's
-coordinates on your machine.
+sends nothing anywhere, has no telemetry, and stores only the pet's position,
+wall side, squash depth and stuck flag in `localStorage` on your machine.
 
 ## If he does not show up
 
 1. Confirm the profile you installed into is the one you boot.
-2. Check the DSH version against the declared range. A newer host is not
-   blocked: the pet still renders and drags, but some status channels may be
-   missing.
+2. Check the DSH version against the declared range. Outside it, installation
+   or profile startup refuses the bundle; grant an exact-version exemption only
+   after accepting the risk (see [COMPATIBILITY.md](COMPATIBILITY.md)).
 3. Set `localStorage['pajama-whale:debug'] = '1'` and reload: the cloud then
    prints the live channels (session id, slot hooks, running state). Missing
    channels are listed in [COMPATIBILITY.md](COMPATIBILITY.md#degradation) —
