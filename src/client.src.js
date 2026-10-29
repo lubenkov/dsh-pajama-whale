@@ -189,7 +189,12 @@ window.__ModuleLoader__.load({
       const [, bumpLocale] = React.useReducer((count) => count + 1, 0);
       React.useEffect(() => {
         if (!localeFace || typeof localeFace.subscribe !== 'function') return undefined;
-        return localeFace.subscribe(() => bumpLocale());
+        try {
+          const dispose = localeFace.subscribe(() => bumpLocale());
+          return typeof dispose === 'function' ? dispose : undefined;
+        } catch {
+          return undefined;
+        }
       }, [localeFace]);
 
       const tr =
@@ -227,16 +232,35 @@ window.__ModuleLoader__.load({
       React.useEffect(() => {
         if (!uiSession) return undefined;
         const read = () => {
-          const id = uiSession.current?.value?.props?.sessionId;
-          const map = uiSession.sessionStatus?.getSnapshot?.();
-          setUiSessionId(id);
-          setUiStatus(id && map ? (map.get(id) ?? null) : null);
+          try {
+            const id = uiSession.current?.value?.props?.sessionId;
+            const map = uiSession.sessionStatus?.getSnapshot?.();
+            setUiSessionId(id);
+            setUiStatus(id && map ? (map.get(id) ?? null) : null);
+          } catch {
+
+          }
         };
         read();
-        const disposers = [
-          uiSession.current?.subscribe?.(read),
-          uiSession.sessionStatus?.subscribe?.(read),
-        ];
+        const disposers = [];
+        const track = (subscribe) => {
+          if (typeof subscribe !== 'function') return;
+          try {
+            disposers.push(subscribe(read));
+          } catch {
+
+          }
+        };
+        try {
+          track(uiSession.current?.subscribe);
+        } catch {
+
+        }
+        try {
+          track(uiSession.sessionStatus?.subscribe);
+        } catch {
+
+        }
         return () => {
           for (const dispose of disposers) if (typeof dispose === 'function') dispose();
         };
@@ -358,6 +382,19 @@ window.__ModuleLoader__.load({
       };
 
       const resolveSprite = (now) => {
+        if (state.side || state.dragging) {
+          state.anim = null;
+          if (state.side) {
+            const squash = SQUASH[state.side];
+            return {
+              key: squash.key,
+              sheet: squash.sheet,
+              frames: SQUASH_FRAMES,
+              position: state.depthSmooth * (SQUASH_FRAMES - 1),
+            };
+          }
+          return { key: NEUTRAL.key, sheet: NEUTRAL.sheet, frames: SQUASH_FRAMES, position: 0 };
+        }
         if (state.anim) {
           const { config, start } = state.anim;
           const position = ((now - start) / 1000) * config.fps;
@@ -365,18 +402,6 @@ window.__ModuleLoader__.load({
             return { key: config.key, sheet: config.sheet, frames: config.frames, position };
           }
           state.anim = null;
-        }
-        if (state.side) {
-          const squash = SQUASH[state.side];
-          return {
-            key: squash.key,
-            sheet: squash.sheet,
-            frames: SQUASH_FRAMES,
-            position: state.depthSmooth * (SQUASH_FRAMES - 1),
-          };
-        }
-        if (state.dragging) {
-          return { key: NEUTRAL.key, sheet: NEUTRAL.sheet, frames: SQUASH_FRAMES, position: 0 };
         }
         if (state.pose !== 'idle' && EMOTIONS[state.pose]) {
           const config = EMOTIONS[state.pose];
