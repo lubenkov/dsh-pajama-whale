@@ -32,24 +32,28 @@ slot.
 
 ## Install
 
-Web (verified on DSH `0.2.1-rc.2`):
+**Web** (verified on DSH `0.2.1-rc.2`):
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.3
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.4
 ```
 
-Desktop is a reserved profile: the npm `dsh` CLI refuses to manage it. Use the
-command installed from the app menu **Manage dsh Command…**, or the Plugin
-Manager page inside the app:
+**Desktop, from a terminal.** The npm `dsh` CLI refuses the reserved `desktop`
+profile. Install the command from the app menu **Manage dsh Command…**, quit
+the app, then run:
 
 ```sh
-dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.3
+dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.4
 ```
 
-Quit the app before changing plugins and reopen it afterwards. Swap `web` for
-another profile you boot. The `#v0.3.3` suffix pins the tagged release; without
-it, pnpm resolves the current `master` once and records that commit in the
-lockfile, so moving to newer commits needs a reinstall or update. To remove him:
+Reopen the app afterwards.
+
+**Desktop, in the app.** Open the **Plugins** page and install the same spec
+there. Keep the app running and follow its restart prompt.
+
+The `#v0.3.4` suffix pins the tagged release; without it, pnpm resolves the
+current `master` once and records that commit in the lockfile, so moving to
+newer commits needs a reinstall or update. To remove him:
 
 ```sh
 dsh plugin --profile <profile> remove dsh-pajama-whale
@@ -62,8 +66,8 @@ reads through).
 
 **Declared for DSH `>=0.2.1-rc.2 <0.3.0-0`** in `engines.dsh`. DSH enforces it
 at installation and profile startup; outside the range it refuses the bundle
-until an exact-version exemption is granted. When listed, the plugin market
-reads the same range to label compatibility. See
+until an exact-version exemption is granted. When listed, the market index
+carries its own copy of the range, so both must be kept in sync. See
 [COMPATIBILITY.md](COMPATIBILITY.md) for the API surface, the exemption
 command, and what degrades gracefully.
 
@@ -107,12 +111,14 @@ clicking always wins, so the pet never hides the context reading from you.
   129 frames) are inlined as data URIs into a single 3.1 MB `client.js`. The
   plugin makes no outbound requests of its own.
 - **Cheap when idle.** The `requestAnimationFrame` loop stops as soon as the
-  pet is idle and no pose is playing; sprite frames advance at their own
-  8–12 fps. Breathing is a ~3.4 s CSS animation every 25–40 s. The loop and
-  breathing pause while the tab is hidden; the status ticker and idle-thought
-  timer are throttled by the browser but not cancelled. Breathing and random
-  emotions are disabled under `prefers-reduced-motion` (pose animations still
-  play).
+  pet is idle and no pose is playing. Sprite frames advance at each animation's
+  own rate — 8 fps for `sleepy`, 10 for `yawn`, 12 for `thinking` and `working`,
+  14 for tail, joy and `surprised`, 16 for `blink`. Breathing is a ~3.4 s CSS
+  animation every 25–40 s. While the tab is hidden the browser suspends
+  `requestAnimationFrame` and breathing is stopped explicitly; the status
+  ticker and idle-thought timer are throttled by the browser but not cancelled.
+  Breathing and random emotions are disabled under `prefers-reduced-motion`
+  (pose animations still play).
 - **Never in your way.** He mounts only into `shell.overlay`, and the overlay
   is `pointer-events: none` outside his body and cloud.
 - **Remembers his place.** Position, wall and squash depth live in

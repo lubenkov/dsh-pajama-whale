@@ -14,6 +14,10 @@ matching, so `<0.3.0-0` is used to exclude every `0.3.0` prerelease as well.
 | `0.2.1-rc.2` | `@deepseek-ai/dsh` from npm, install and behaviour |
 | `0.2.1-rc.3` | DeepSeek Harness desktop runtime, install and behaviour |
 
+Other versions inside the declared range are admitted by that range but were
+not verified by the author; only the rows above were run. CI validates
+packaging, the build and locale consistency, not a live DSH session.
+
 ## If DSH refuses the range
 
 Installation reports `incompatible-version` with the unmet `engines.dsh`
@@ -50,9 +54,11 @@ plugin manager's version-exemption actions.
 - No locale service: English strings.
 - No `uiWorkspace`: clicking the cloud does nothing.
 - No slot standard props: the pet uses `uiSession` and `sessions.binding`.
-- Service lookups and snapshot reads are wrapped: if `host.get`, `binding`,
-  `getSnapshot`, a projection or a subscription throws, that channel is skipped
-  and the pet stays a decoration. The host UI is never blocked by the pet.
+- The service calls made by the pet are wrapped: if `host.get`, `binding`,
+  `getSnapshot`, a projection, a `uiSession` read or a subscription throws,
+  that channel is skipped and the pet stays a decoration. Failures outside
+  those calls, such as a React render error or a host renderer failure, are
+  outside this guarantee.
 
 To see which channels are live, set
 `localStorage['pajama-whale:debug'] = '1'` and reload. The cloud then shows the

@@ -28,21 +28,25 @@
 
 ## 安装
 
-Web（已在 DSH `0.2.1-rc.2` 上验证）：
+**Web**（已在 DSH `0.2.1-rc.2` 上验证）：
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.3
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.4
 ```
 
-Desktop 是保留 profile：npm 版 `dsh` CLI 拒绝管理它。请使用应用菜单
-**Manage dsh Command…** 安装的命令，或应用内的 Plugin Manager 页面：
+**Desktop，从终端安装。** npm 版 `dsh` CLI 拒绝保留的 `desktop` profile。
+请先从应用菜单 **Manage dsh Command…** 安装命令，退出应用，然后运行：
 
 ```sh
-dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.3
+dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.4
 ```
 
-更改插件前先退出应用，之后重新打开。把 `web` 换成你启动的另一个 profile。
-`#v0.3.3` 后缀固定到已打标签的版本；不带后缀时，pnpm 只解析一次当前 `master`
+之后重新打开应用。
+
+**Desktop，在应用内安装。** 打开 **Plugins** 页面，在那里安装同一个 spec。
+保持应用运行，并按照它提示的重启步骤操作。
+
+`#v0.3.4` 后缀固定到已打标签的版本；不带后缀时，pnpm 只解析一次当前 `master`
 并把该提交写入 lockfile，要跟进新提交需要重新安装或更新。要移除他：
 
 ```sh
@@ -55,8 +59,8 @@ dsh plugin --profile <profile> remove dsh-pajama-whale
 
 **声明兼容 DSH `>=0.2.1-rc.2 <0.3.0-0`**，写在 `engines.dsh` 中。DSH 会在安装和
 启动 profile 时强制执行；超出范围会拒绝该 bundle，直到为确切的版本对授予豁免。
-列入目录后，插件市场会用同一范围标注兼容性。API 面、豁免命令和优雅降级见
-[COMPATIBILITY.md](COMPATIBILITY.md)。
+列入目录后，市场索引会保存一份自己的范围副本，因此两边需要保持同步。
+API 面、豁免命令和优雅降级见 [COMPATIBILITY.md](COMPATIBILITY.md)。
 
 ## 和他一起玩
 
@@ -95,9 +99,11 @@ dsh plugin --profile <profile> remove dsh-pajama-whale
 
 - **无需构建，无需下载。** 全部 12 张图（2.3 MB WebP、129 帧）都以 data URI
   内联进单个 3.1 MB 的 `client.js`。插件自身不发起任何外部请求。
-- **空闲时很省。** 当宠物空闲且没有姿势在播放时，`requestAnimationFrame` 循环会停止；
-  精灵帧按自己的 8–12 fps 前进。呼吸是每 25–40 秒一次的约 3.4 秒 CSS 动画。
-  标签页隐藏时循环和呼吸暂停；状态计时器和空闲想法计时器会被浏览器降频，但不会取消。
+- **空闲时很省。** 当宠物空闲且没有姿势在播放时，`requestAnimationFrame` 循环会停止。
+  精灵帧按各动画自己的速率前进——`sleepy` 8 fps、`yawn` 10 fps、`thinking` 和
+  `working` 12 fps、尾巴/joy/`surprised` 14 fps、`blink` 16 fps。呼吸是每 25–40 秒
+  一次的约 3.4 秒 CSS 动画。标签页隐藏时浏览器会暂停 `requestAnimationFrame`，
+  呼吸也会被显式停止；状态计时器和空闲想法计时器会被浏览器降频，但不会取消。
   在 `prefers-reduced-motion` 下，呼吸和随机情绪会被禁用（姿势动画仍会播放）。
 - **从不挡路。** 他只挂载到 `shell.overlay`，在他身体和气泡之外，
   overlay 是 `pointer-events: none`。
