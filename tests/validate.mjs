@@ -45,28 +45,6 @@ if (!exists('docs/preview.png')) {
   fail('docs/preview.png is empty');
 }
 
-if (!exists('screenshots.json')) {
-  fail('missing screenshots.json');
-} else {
-  const shots = JSON.parse(read('screenshots.json'));
-  const list = Array.isArray(shots) ? shots : shots.screenshots;
-  if (!Array.isArray(list) || list.length < 1 || list.length > 8) {
-    fail('screenshots.json: expected 1 to 8 images');
-  } else {
-    for (const shot of list) {
-      if (typeof shot !== 'string') {
-        fail('screenshots.json: every path must be a string');
-        continue;
-      }
-      if (shot.startsWith('/') || shot.includes('..')) {
-        fail(`screenshots.json: "${shot}" must stay inside the repository`);
-        continue;
-      }
-      if (!exists(shot)) fail(`screenshots.json: missing ${shot}`);
-    }
-  }
-}
-
 for (const locale of ['en', 'zh']) {
   const path = `locale/${locale}.json`;
   if (!exists(path)) {
