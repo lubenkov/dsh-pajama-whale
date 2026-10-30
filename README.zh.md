@@ -13,7 +13,7 @@
 
 [English](README.md) · [中文](README.zh.md)
 
-<img src="docs/preview.png" width="620" alt="穿着鲸鱼连体衣的宠物正在用笔记本电脑">
+<img src="https://raw.githubusercontent.com/lubenkov/dsh-pajama-whale/master/docs/demo.gif" width="620" alt="宠物眨眼、被扔到墙上压扁、睡着并打哈欠">
 
 </div>
 
@@ -31,14 +31,14 @@
 **Web**（已在 DSH `0.2.1-rc.2` 上验证）：
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.4
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.5
 ```
 
 **Desktop，从终端安装。** npm 版 `dsh` CLI 拒绝保留的 `desktop` profile。
 请先从应用菜单 **Manage dsh Command…** 安装命令，退出应用，然后运行：
 
 ```sh
-dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.4
+dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.5
 ```
 
 之后重新打开应用。
@@ -46,7 +46,7 @@ dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.4
 **Desktop，在应用内安装。** 打开 **Plugins** 页面，在那里安装同一个 spec。
 保持应用运行，并按照它提示的重启步骤操作。
 
-`#v0.3.4` 后缀固定到已打标签的版本；不带后缀时，pnpm 只解析一次当前 `master`
+`#v0.3.5` 后缀固定到已打标签的版本；不带后缀时，pnpm 只解析一次当前 `master`
 并把该提交写入 lockfile，要跟进新提交需要重新安装或更新。要移除他：
 
 ```sh
@@ -84,6 +84,8 @@ API 面、豁免命令和优雅降级见 [COMPATIBILITY.md](COMPATIBILITY.md)。
 | 上下文压力达到 80 % | 一次 `surprised`；只要仍 ≥80 %，气泡就显示 `context N%`，低于 75 % 后 `surprised` 才会再次触发 |
 | 连续工作 50 分钟 | 气泡建议 `take a break?`，持续 9 秒（每 45 分钟重复一次；少于 3 分钟的暂停仍算连续） |
 | 安静一分钟 | 以循环的 16 帧 `sleepy` 睡着；当你用光标叫醒他时打哈欠（13 帧）——新的回合会安静地叫醒他 |
+
+<img src="https://raw.githubusercontent.com/lubenkov/dsh-pajama-whale/master/docs/demo-working.gif" width="620" alt="宠物用笔记本电脑工作、思考，然后露出惊讶表情并显示上下文气泡">
 
 空闲时他只会眨眼（75 %）或摇尾巴（25 %），每 1.9–4.5 秒一次，外加罕见的
 `hmm…` 想法。一共是 12 张精灵图里的 129 帧。当你拖动他或他贴在墙上时，

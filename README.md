@@ -13,7 +13,7 @@ and tells you what the agent is doing while you wait.
 
 [English](README.md) · [中文](README.zh.md)
 
-<img src="docs/preview.png" width="620" alt="The pet at his laptop in a whale onesie">
+<img src="https://raw.githubusercontent.com/lubenkov/dsh-pajama-whale/master/docs/demo.gif" width="620" alt="The pet blinks, is thrown flat against a wall, falls asleep and yawns">
 
 </div>
 
@@ -35,7 +35,7 @@ slot.
 **Web** (verified on DSH `0.2.1-rc.2`):
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.4
+dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.5
 ```
 
 **Desktop, from a terminal.** The npm `dsh` CLI refuses the reserved `desktop`
@@ -43,7 +43,7 @@ profile. Install the command from the app menu **Manage dsh Command…**, quit
 the app, then run:
 
 ```sh
-dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.4
+dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.5
 ```
 
 Reopen the app afterwards.
@@ -51,7 +51,7 @@ Reopen the app afterwards.
 **Desktop, in the app.** Open the **Plugins** page and install the same spec
 there. Keep the app running and follow its restart prompt.
 
-The `#v0.3.4` suffix pins the tagged release; without it, pnpm resolves the
+The `#v0.3.5` suffix pins the tagged release; without it, pnpm resolves the
 current `master` once and records that commit in the lockfile, so moving to
 newer commits needs a reinstall or update. To remove him:
 
@@ -93,6 +93,8 @@ command, and what degrades gracefully.
 | Context pressure reaches 80 % | One `surprised`; cloud shows `context N%` while it stays ≥80 %, and `surprised` re-arms below 75 % |
 | 50 min of continuous work | Cloud suggests `take a break?` for 9 s (repeats every 45 min; a pause under 3 min still counts as continuous) |
 | A minute of quiet | Falls asleep on a looping 16-frame `sleepy`; a yawn (13 frames) when you wake him with the cursor — a new turn wakes him silently |
+
+<img src="https://raw.githubusercontent.com/lubenkov/dsh-pajama-whale/master/docs/demo-working.gif" width="620" alt="The pet works at a laptop, thinks, then looks surprised with a context cloud">
 
 While idle he only blinks (75 %) or wags his tail (25 %), every 1.9–4.5 s, plus
 a rare `hmm…` thought. That is 129 frames across 12 sprite sheets. While you
