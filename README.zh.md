@@ -33,23 +33,26 @@
 **Web**（已在 DSH `0.2.1-rc.2` 上验证）：
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.5
+dsh plugin --profile web add dsh-pajama-whale
 ```
+
+安装最新的 npm 版本；加上 `@0.3.5` 可固定版本。想直接从 GitHub 标签安装？
+使用 `dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.5`
+（需要 `git`）。
 
 **Desktop，从终端安装。** npm 版 `dsh` CLI 拒绝保留的 `desktop` profile。
 请先从应用菜单 **Manage dsh Command…** 安装命令，退出应用，然后运行：
 
 ```sh
-dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.5
+dsh plugin --profile desktop add dsh-pajama-whale
 ```
 
 之后重新打开应用。
 
-**Desktop，在应用内安装。** 打开 **Plugins** 页面，在那里安装同一个 spec。
-保持应用运行，并按照它提示的重启步骤操作。
+**Desktop，在应用内安装。** 打开 **Plugins** 页面，在那里安装
+`dsh-pajama-whale`。保持应用运行，并按照它提示的重启步骤操作。
 
-`#v0.3.5` 后缀固定到已打标签的版本；不带后缀时，pnpm 只解析一次当前 `master`
-并把该提交写入 lockfile，要跟进新提交需要重新安装或更新。要移除他：
+要移除他：
 
 ```sh
 dsh plugin --profile <profile> remove dsh-pajama-whale

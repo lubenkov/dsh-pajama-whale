@@ -37,25 +37,28 @@ slot.
 **Web** (verified on DSH `0.2.1-rc.2`):
 
 ```sh
-dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.5
+dsh plugin --profile web add dsh-pajama-whale
 ```
+
+This installs the latest npm release; append `@0.3.5` to pin it. Prefer the
+tagged GitHub source? Use
+`dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.5`
+(requires `git`).
 
 **Desktop, from a terminal.** The npm `dsh` CLI refuses the reserved `desktop`
 profile. Install the command from the app menu **Manage dsh Command…**, quit
 the app, then run:
 
 ```sh
-dsh plugin --profile desktop add github:lubenkov/dsh-pajama-whale#v0.3.5
+dsh plugin --profile desktop add dsh-pajama-whale
 ```
 
 Reopen the app afterwards.
 
-**Desktop, in the app.** Open the **Plugins** page and install the same spec
-there. Keep the app running and follow its restart prompt.
+**Desktop, in the app.** Open the **Plugins** page and install
+`dsh-pajama-whale` there. Keep the app running and follow its restart prompt.
 
-The `#v0.3.5` suffix pins the tagged release; without it, pnpm resolves the
-current `master` once and records that commit in the lockfile, so moving to
-newer commits needs a reinstall or update. To remove him:
+To remove him:
 
 ```sh
 dsh plugin --profile <profile> remove dsh-pajama-whale
