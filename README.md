@@ -9,6 +9,8 @@ and tells you what the agent is doing while you wait.
 
 [![CI](https://github.com/lubenkov/dsh-pajama-whale/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/lubenkov/dsh-pajama-whale/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/dsh-pajama-whale?label=npm)](https://www.npmjs.com/package/dsh-pajama-whale)
+[![downloads](https://img.shields.io/npm/dm/dsh-pajama-whale)](https://www.npmjs.com/package/dsh-pajama-whale)
 [![DSH](https://img.shields.io/badge/DSH-%E2%89%A50.2.1--rc.2%20%3C0.3.0--0-4D6BFE)](COMPATIBILITY.md)
 
 [English](README.md) · [中文](README.zh.md)
