@@ -36,8 +36,8 @@
 dsh plugin --profile web add dsh-pajama-whale
 ```
 
-安装最新的 npm 版本；加上 `@0.3.5` 可固定版本。想直接从 GitHub 标签安装？
-使用 `dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.5`
+安装最新的 npm 版本；加上 `@0.3.6` 可固定版本。想直接从 GitHub 标签安装？
+使用 `dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.6`
 （需要 `git`）。
 
 **Desktop，从终端安装。** npm 版 `dsh` CLI 拒绝保留的 `desktop` profile。

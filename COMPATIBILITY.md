@@ -13,6 +13,7 @@ matching, so `<0.3.0-0` is used to exclude every `0.3.0` prerelease as well.
 |---|---|
 | `0.2.1-rc.2` | `@deepseek-ai/dsh` from npm, install and behaviour |
 | `0.2.1-rc.3` | DeepSeek Harness desktop runtime, install and behaviour |
+| `0.2.1-rc.5` | current DeepSeek Harness desktop runtime, running with the plugin |
 
 Other versions inside the declared range are admitted by that range but were
 not verified by the author; only the rows above were run. CI validates
@@ -20,14 +21,14 @@ packaging, the build and locale consistency, not a live DSH session.
 
 ## Install paths
 
-Tested on 2026-10-30 against the published `0.3.5`, each in a fresh profile
+Tested on 2026-10-30 against the published `0.3.6`, each in a fresh profile
 under a temporary `DSH_HOME`.
 
 | Command | Result | Notes |
 |---|---|---|
-| `dsh plugin --profile test add dsh-pajama-whale` | works | resolved the latest release as `^0.3.5` |
-| `dsh plugin --profile test add dsh-pajama-whale@0.3.5` | works | exact `0.3.5` |
-| `dsh plugin --profile test add github:lubenkov/dsh-pajama-whale#v0.3.5` | works | needs `git` and HTTPS access to GitHub |
+| `dsh plugin --profile test add dsh-pajama-whale` | works | resolved the latest release as `^0.3.6` |
+| `dsh plugin --profile test add dsh-pajama-whale@0.3.6` | works | exact `0.3.6` |
+| `dsh plugin --profile test add github:lubenkov/dsh-pajama-whale#v0.3.6` | works | needs `git` and HTTPS access to GitHub |
 | `dsh plugin --profile desktop add ...` with the npm CLI | refused | `desktop` is reserved; use the command installed from **Manage dsh Command…** or the in-app **Plugins** page |
 
 Each test profile listed `dsh-pajama-whale` under `dsh.profile.bundles`, and

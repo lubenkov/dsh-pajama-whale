@@ -40,9 +40,9 @@ slot.
 dsh plugin --profile web add dsh-pajama-whale
 ```
 
-This installs the latest npm release; append `@0.3.5` to pin it. Prefer the
+This installs the latest npm release; append `@0.3.6` to pin it. Prefer the
 tagged GitHub source? Use
-`dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.5`
+`dsh plugin --profile web add github:lubenkov/dsh-pajama-whale#v0.3.6`
 (requires `git`).
 
 **Desktop, from a terminal.** The npm `dsh` CLI refuses the reserved `desktop`
