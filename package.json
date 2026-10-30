@@ -1,6 +1,6 @@
 {
   "name": "dsh-pajama-whale",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "A tiny person in a blue-whale onesie you can drag around the DSH window; he sticks to the window edges, pressed flat, and blinks now and then.",
   "type": "module",
   "license": "MIT",
@@ -38,7 +38,6 @@
     "client.js",
     "cordis.patch.yml",
     "assets/icon.png",
-    "assets/build/*.webp",
     "docs/preview.png",
     "locale/*.json",
     "tools/build-client.mjs",

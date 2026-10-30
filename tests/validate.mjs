@@ -22,8 +22,12 @@ for (const file of ['index.js', 'client.js', 'cordis.patch.yml', 'LICENSE', 'REA
 if (pkg.icon !== './assets/icon.png') fail('package.json: unexpected icon path');
 if (!pkg.exports?.['./icon']) fail('package.json: missing ./icon export');
 if (!pkg.exports?.['./locale/*.json']) fail('package.json: missing locale export');
+if (pkg.files?.some((entry) => String(entry).startsWith('assets/build'))) {
+  fail('package.json: packed sprite strips must not be shipped; client.js already inlines them');
+}
 
-const iconPath = join(root, 'assets/icon.png');if (!existsSync(iconPath)) {
+const iconPath = join(root, 'assets/icon.png');
+if (!existsSync(iconPath)) {
   fail('missing assets/icon.png');
 } else {
   const icon = readFileSync(iconPath);
@@ -43,6 +47,50 @@ if (!exists('docs/preview.png')) {
   fail('missing docs/preview.png');
 } else if (statSync(join(root, 'docs/preview.png')).size < 1000) {
   fail('docs/preview.png is empty');
+}
+
+for (const demo of ['docs/demo.gif', 'docs/demo-working.gif']) {
+  if (!exists(demo)) {
+    fail(`missing ${demo}`);
+    continue;
+  }
+  const bytes = statSync(join(root, demo)).size;
+  if (bytes > 2_500_000) fail(`${demo} is ${bytes} bytes, above the 2.5 MB budget`);
+  if (readFileSync(join(root, demo)).toString('latin1', 0, 4) !== 'GIF8') {
+    fail(`${demo} is not a GIF`);
+  }
+}
+
+if (!exists('screenshots.json')) {
+  fail('missing screenshots.json');
+} else {
+  const shots = JSON.parse(read('screenshots.json'));
+  const list = Array.isArray(shots) ? shots : shots.screenshots;
+  if (!Array.isArray(list) || list.length < 1 || list.length > 8) {
+    fail('screenshots.json: expected 1 to 8 images');
+  } else {
+    for (const shot of list) {
+      if (typeof shot !== 'string') {
+        fail('screenshots.json: every path must be a string');
+        continue;
+      }
+      if (shot.startsWith('/') || shot.includes('..')) {
+        fail(`screenshots.json: "${shot}" must stay inside the repository`);
+        continue;
+      }
+      if (!/\.(png|jpe?g|webp)$/i.test(shot)) {
+        fail(`screenshots.json: "${shot}" is not a supported image`);
+        continue;
+      }
+      if (!exists(shot)) {
+        fail(`screenshots.json: missing ${shot}`);
+        continue;
+      }
+      if (statSync(join(root, shot)).size > 700 * 1024) {
+        fail(`screenshots.json: ${shot} is above 700 KiB`);
+      }
+    }
+  }
 }
 
 for (const locale of ['en', 'zh']) {
