@@ -176,6 +176,11 @@ CI runs the same validation on Node 20 and 24 and fails if the committed
 `assets/build/*.webp` strips are, so you never need it unless you redraw
 frames.
 
+---
+
+If this little whale makes your DSH window nicer, a ⭐ helps others find him:
+[github.com/lubenkov/dsh-pajama-whale](https://github.com/lubenkov/dsh-pajama-whale)
+
 ## License
 
 MIT for the code and the artwork.

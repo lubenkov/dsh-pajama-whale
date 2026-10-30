@@ -158,6 +158,11 @@ CI 在 Node 20 和 24 上运行同样的校验，如果提交的 `client.js` 与
 `assets/sprites/`（约 64 MB 的源美术包）没有提交；提交的是打包后的
 `assets/build/*.webp`，所以除非你要重画帧，否则永远不需要它。
 
+---
+
+如果这只小鲸鱼让你的 DSH 窗口更可爱，点个 ⭐ 能让更多人发现他：
+[github.com/lubenkov/dsh-pajama-whale](https://github.com/lubenkov/dsh-pajama-whale)
+
 ## 许可证
 
 代码和美术资源均采用 MIT 许可证。
